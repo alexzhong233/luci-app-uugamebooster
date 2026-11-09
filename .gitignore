@@ -1,4 +1,7 @@
-dist/
+# dist/ is build output, except the prebuilt catalogue shipped for
+# hot-install on a running router (see docs/local-changes.md).
+dist/*
+!dist/*.lmo
 payload/
 __pycache__/
 # Compiled by tools/build-preload.sh so an SDK build can package them.
