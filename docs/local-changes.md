@@ -18,39 +18,21 @@ New: `root/usr/libexec/uuplugin/uu-passwall-sync`, `docs/passwall.md`.
 
 Rationale and the measured behaviour: [docs/passwall.md](passwall.md).
 
-## 2. Registration record survives a reboot
-
-New: `root/usr/libexec/uuplugin/uu-state`.
-
-The core writes its NetEase registration record to `$RUN_DIR/activate_status`,
-and `RUN_DIR` is `/var/tmp/uu` — a symlink to `/tmp`, i.e. tmpfs. The record is
-written once and never refreshed, so every reboot threw it away: the console
-booster app had to register the router again, and the status page sat on
-*registering* until it did. `uu-state restore|save|keep` keeps a copy under
-`/etc/uuplugin` and puts it back before the core starts.
-
-| File | Change |
-|---|---|
-| `root/etc/init.d/uuplugin` | `STATE`, `STATE_DIR`, `PERSIST_STATE`; `restore` before launch, `save` on stop, `keep` as a procd instance |
-
-Set `PERSIST_STATE=0` at the top of the init script to turn it off. The copy is
-a few hundred bytes and is only written when it changes.
-
-## 3. Menu under VPN
+## 2. Menu under VPN
 
 `luasrc/controller/uuplugin.lua`: `admin/services/uuplugin` → `admin/vpn/uuplugin`.
 `luasrc/view/uuplugin/uuplugin_status.htm`: the URL its poll loop builds is made
 from the same path parts and had to move with it, otherwise the status panel
 404s.
 
-## 4. Scheduled sync from upstream
+## 3. Scheduled sync from upstream
 
 `.github/workflows/sync-upstream.yml` calls GitHub's own `merge-upstream`
 endpoint daily, which merges the parent repository's default branch into
 `master`. A conflict is reported in the run log and left alone — it is never
 resolved by guessing.
 
-## 5. 中文翻译
+## 4. 中文翻译
 
 新增的字符串（PassWall 标签页、状态面板那两行）在 `po/zh_Hans/uugamebooster.po`
 里补了 8 条，`po/templates/uugamebooster.pot` 用 `tools/i18n-scan.py` 重新生成。

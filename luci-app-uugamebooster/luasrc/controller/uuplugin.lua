@@ -53,12 +53,14 @@ function act_status()
 	if e.cloud == "" then e.cloud = nil end
 	e.activated = det:match("activated=([^\r\n]*)")
 	if e.activated == "" then e.activated = nil end
-	-- The vendor build never writes activate_status - it keeps its registration
-	-- in /tmp/uu/.uu.db, a file it neither documents nor exposes. Demanding the
-	-- plugin build's file therefore left every OEM install stuck on "registering"
-	-- forever, even while the router was bound and boosting. For OEM builds the
-	-- control connection is all we can honestly observe, so that is what "ready"
-	-- is based on; the template says the rest is managed from the app.
+	-- The vendor build writes activate_status once, at binding, and never again;
+	-- it keeps the rest of its state in a .uu.db under the same data directory.
+	-- Both live in tmpfs, so after the first reboot that marker is gone for good
+	-- and the file is never recreated - demanding it therefore left every OEM
+	-- install stuck on "registering" while the router was bound and boosting
+	-- fine. For OEM builds the control connection is all we can honestly
+	-- observe, so that is what "ready" is based on; the template says the rest
+	-- is managed from the app.
 	e.oem = (e.build or ""):match("^oem") ~= nil
 
 	-- Three distinct phases after a start, which look identical from the

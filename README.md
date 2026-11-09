@@ -30,7 +30,6 @@ What this fork adds:
 - **A device list**, so the UU app only sees the devices you pick.
 - **English and Chinese UI**, following LuCI's language setting.
 - **Coexistence with PassWall.** Game traffic already routes into UU's tunnel on its own; what collides is DNS, and that is pushed out of the way so a boosted device keeps resolving through PassWall. See [docs/passwall.md](docs/passwall.md).
-- **The registration record survives a reboot.** It lives in tmpfs by design of the core, so every reboot used to register the router again.
 - **The page lives under VPN**, next to netbird and tailscale, instead of under Services.
 
 This is a personal fork. Everything above the first line is inherited; the changes made
