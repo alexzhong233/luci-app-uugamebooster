@@ -29,6 +29,13 @@ What this fork adds:
 - **As fast as UU's own PC client**, measured: 25 ms vs 25-27 ms on CS2 through Hong Kong.
 - **A device list**, so the UU app only sees the devices you pick.
 - **English and Chinese UI**, following LuCI's language setting.
+- **Coexistence with PassWall.** Game traffic already routes into UU's tunnel on its own; what collides is DNS, and that is pushed out of the way so a boosted device keeps resolving through PassWall. See [docs/passwall.md](docs/passwall.md).
+- **The registration record survives a reboot.** It lives in tmpfs by design of the core, so every reboot used to register the router again.
+- **The page lives under VPN**, next to netbird and tailscale, instead of under Services.
+
+This is a personal fork. Everything above the first line is inherited; the changes made
+here are listed in [docs/local-changes.md](docs/local-changes.md), and `master` is
+fast-forwarded from upstream by a scheduled workflow.
 
 The plugin ships **no accelerator binary**. On first start it downloads the official one for your architecture and checks its MD5 before running it.
 

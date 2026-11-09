@@ -5,9 +5,13 @@ function index()
 		return
 	end
 
-	entry({"admin", "services", "uuplugin"}, cbi("uuplugin"),
+	-- Under VPN rather than Services: this is the same kind of thing as the
+	-- netbird and tailscale pages, and it keeps the accelerator next to them.
+	-- The status endpoint below has to move with it - the view builds its URL
+	-- from these same path parts.
+	entry({"admin", "vpn", "uuplugin"}, cbi("uuplugin"),
 		_("UU Game Booster"), 99).dependent = true
-	entry({"admin", "services", "uuplugin", "status"}, call("act_status")).leaf = true
+	entry({"admin", "vpn", "uuplugin", "status"}, call("act_status")).leaf = true
 end
 
 function act_status()
@@ -81,6 +85,13 @@ function act_status()
 
 	-- Number of destination prefixes currently diverted away from OpenClash
 	e.bypassed = lines("/var/run/uu-openclash.state")
+
+	-- PassWall integration state. Only the exempted device count is worth
+	-- showing: PassWall needs no traffic split, so there is nothing to report
+	-- beyond "its DNS is protected".
+	e.passwall_installed = fs.access("/etc/config/passwall")
+	e.passwall_mode = uci:get_first("uuplugin", "uuplugin", "passwall_mode") or "cooperative"
+	e.passwall_exempted = lines("/var/run/uu-passwall.state")
 
 	-- UA3F integration state, and the prefixes kept out of it
 	e.ua3f_installed = fs.access("/etc/config/ua3f")

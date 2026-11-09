@@ -51,7 +51,7 @@ function uuRow(k, v, last) {
 	       '</div>';
 }
 
-var uuUrl = '<%=url([[admin]], [[services]], [[uuplugin]], [[status]])%>';
+var uuUrl = '<%=url([[admin]], [[vpn]], [[uuplugin]], [[status]])%>';
 
 function uuRender(d) {
 		var el = document.getElementById('uu-status');
@@ -121,23 +121,25 @@ function uuRender(d) {
 			  d.boosted.replace(/ /g, '</code> <code>') + '</code>'
 			: '<span class="uu-muted"><%:none - boost a device in the UU app%></span>');
 
-		// UA3F rows only appear when it is installed, so whichever block comes
-		// last closes the panel.
+		// UA3F and PassWall rows only appear when they are installed, so
+		// whichever block comes last closes the panel.
 		var ua3f = d.ua3f_installed;
+		var pw = d.passwall_installed;
+		var afterOc = ua3f || pw;
 		if (!d.openclash_installed) {
-			h += uuRow('<%:OpenClash%>', '<span class="uu-muted"><%:not installed%></span>', !ua3f);
+			h += uuRow('<%:OpenClash%>', '<span class="uu-muted"><%:not installed%></span>', !afterOc);
 		} else {
 			h += uuRow('<%:OpenClash%>', d.openclash_running
 				? '<span class="uu-dot ok"></span><span class="t-ok"><%:Running%></span>'
 				: '<span class="uu-dot warn"></span><span class="t-warn"><%:installed, not running%></span>');
 
 			var coop = (d.mode == 'cooperative');
-			h += uuRow('<%:Coexistence%>', '<code>' + (d.mode || '?') + '</code>', !coop && !ua3f);
+			h += uuRow('<%:Coexistence%>', '<code>' + (d.mode || '?') + '</code>', !coop && !afterOc);
 
 			if (coop) {
 				h += uuRow('<%:Exempted from proxy%>', (d.bypassed > 0)
 					? '<span class="uu-num">' + d.bypassed + '</span> <%:game destinations, for boosted devices only%>'
-					: '<span class="uu-muted"><%:nothing - no device is being boosted%></span>', !ua3f);
+					: '<span class="uu-muted"><%:nothing - no device is being boosted%></span>', !afterOc);
 			}
 		}
 
@@ -147,11 +149,23 @@ function uuRender(d) {
 				? '<span class="uu-dot ok"></span><span class="t-ok"><%:Running%></span>'
 				: '<span class="uu-dot warn"></span><span class="t-warn"><%:installed, not running%></span>') +
 				(d.ua3f_mode == 'off' ? ' <span class="uu-muted">&ndash; <%:left alone%></span>' : ''),
-				!ucoop);
+				!ucoop && !pw);
 
 			if (ucoop) {
 				h += uuRow('<%:Exempted from UA3F%>', (d.ua3f_exempted > 0)
 					? '<span class="uu-num">' + d.ua3f_exempted + '</span> <%:game destinations, for boosted devices only%>'
+					: '<span class="uu-muted"><%:nothing - no device is being boosted%></span>', !pw);
+			}
+		}
+
+		if (pw) {
+			h += uuRow('<%:PassWall%>', (d.passwall_mode == 'off')
+				? '<span class="uu-dot warn"></span><span class="t-warn"><%:installed%></span> <span class="uu-muted">&ndash; <%:left alone%></span>'
+				: '<span class="uu-dot ok"></span><span class="t-ok"><%:DNS kept%></span>');
+
+			if (d.passwall_mode != 'off') {
+				h += uuRow('<%:Protected from the DNS redirect%>', (d.passwall_exempted > 0)
+					? '<span class="uu-num">' + d.passwall_exempted + '</span> <%:boosted devices%>'
 					: '<span class="uu-muted"><%:nothing - no device is being boosted%></span>', true);
 			}
 		}

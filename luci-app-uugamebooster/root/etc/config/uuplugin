@@ -16,6 +16,8 @@ config uuplugin
 	option oc_min_prefix '8'
 	# off | cooperative   (only acts while UA3F is installed and running)
 	option ua3f_mode 'cooperative'
+	# off | cooperative   (only acts while PassWall is installed)
+	option passwall_mode 'cooperative'
 	# all | blacklist | whitelist
 	option device_mode 'all'
 	# match devices by MAC as well as IP

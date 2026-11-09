@@ -1,0 +1,83 @@
+#!/bin/sh
+# uu-state - keep UU's registration record out of tmpfs.
+#
+# Usage: uu-state <restore|save|keep> <RUN_DIR> <STATE_DIR>
+#
+# The core is a closed binary that writes its NetEase registration record to
+# <RUN_DIR>/activate_status. <RUN_DIR> is /var/tmp/uu, and on OpenWrt /var/tmp
+# is a symlink to /tmp - a tmpfs that is empty again after every reboot.
+#
+# The record is written once, after the core has registered with NetEase, and
+# never updated. It is what says "this router is already bound", so losing it
+# means the console-booster app has to register all over again after every
+# reboot, and the status page sits on "registering" until it does. That is the
+# bug this exists to fix; the file is a few hundred bytes, so keeping a copy
+# under /etc costs nothing.
+#
+#   restore  STATE_DIR -> RUN_DIR, only when RUN_DIR has no copy of its own
+#   save     RUN_DIR -> STATE_DIR, only when the two differ
+#   keep     save, sleep, repeat - the form procd runs
+#
+# Only ever restores a missing file, never a stale one: a core that dropped its
+# registration on purpose must not have it appear again behind its back.
+
+FILES="activate_status"
+
+usage() {
+	echo "usage: uu-state <restore|save|keep> <run_dir> <state_dir>" >&2
+	exit 1
+}
+
+# Writes through a temporary file so a reader never sees a half copy.
+put() {
+	cp -f "$1" "$2.tmp" 2>/dev/null && mv -f "$2.tmp" "$2" 2>/dev/null
+}
+
+same() {
+	[ -s "$1" ] && [ -s "$2" ] || return 1
+	cmp -s "$1" "$2"
+}
+
+do_restore() {
+	local run="$1" st="$2" f
+	[ -d "$st" ] || return 0
+	for f in $FILES; do
+		[ -s "$st/$f" ] || continue
+		[ -s "$run/$f" ] && continue
+		mkdir -p "$run" 2>/dev/null
+		put "$st/$f" "$run/$f" && \
+			logger -t uu-state -p daemon.info "restored $f from $st"
+	done
+	return 0
+}
+
+do_save() {
+	local run="$1" st="$2" f
+	[ -d "$run" ] || return 0
+	for f in $FILES; do
+		[ -s "$run/$f" ] || continue
+		same "$run/$f" "$st/$f" && continue
+		mkdir -p "$st" 2>/dev/null
+		put "$run/$f" "$st/$f" && \
+			logger -t uu-state -p daemon.info "saved $f to $st"
+	done
+	return 0
+}
+
+CMD="$1"; RUN="$2"; ST="$3"
+[ -n "$CMD" ] || usage
+
+case "$CMD" in
+	restore) do_restore "$RUN" "$ST" ;;
+	save)    do_save "$RUN" "$ST" ;;
+	keep)
+		# A bare sleep defers the TERM trap until it returns, and procd then
+		# escalates to SIGKILL; backgrounding it lets the trap run at once.
+		trap 'exit 0' TERM INT
+		while :; do
+			do_save "$RUN" "$ST"
+			sleep 15 & wait $!
+		done
+		;;
+	*) usage ;;
+esac

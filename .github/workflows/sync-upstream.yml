@@ -1,0 +1,48 @@
+name: Sync upstream
+
+# Fast-forwards this fork from xiaodoudou/luci-app-uugamebooster.
+#
+# Uses GitHub's own merge-upstream endpoint rather than a git push: it is the
+# same thing the "Sync fork" button does, it needs no checkout, and it refuses
+# to do anything clever. With local commits on top the result is a merge commit
+# rather than a fast-forward, which is fine; a real conflict comes back as 409
+# and stops here, so nothing is ever resolved by guessing.
+
+on:
+  schedule:
+    - cron: '23 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Merge upstream master
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eu
+          out=$(mktemp)
+          code=$(curl -sS -o "$out" -w '%{http_code}' \
+            -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/merge-upstream" \
+            -d '{"branch":"master"}')
+          cat "$out"
+          case "$code" in
+            200)
+              echo "::notice::$(sed -n 's/.*"merge_type": *"\([^"]*\)".*/\1/p' "$out")"
+              ;;
+            409)
+              echo "::warning::Upstream conflicts with this fork; resolve by hand."
+              exit 1
+              ;;
+            *)
+              echo "::error::merge-upstream returned HTTP $code"
+              exit 1
+              ;;
+          esac

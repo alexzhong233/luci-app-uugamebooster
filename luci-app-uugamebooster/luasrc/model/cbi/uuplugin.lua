@@ -21,6 +21,7 @@ s.addremove = false
 s:tab("general", translate("General"))
 s:tab("build",   translate("What to boost"))
 s:tab("clash",   translate("OpenClash"))
+s:tab("passwall", translate("PassWall"))
 s:tab("ua3f",    translate("UA3F"))
 s:tab("devices", translate("Device visibility"))
 s:tab("howto",   translate("How to use"))
@@ -140,6 +141,29 @@ o = s:taboption("clash", Value, "oc_min_prefix",
 o.datatype = "range(1,32)"
 o.default = "8"
 o:depends("openclash_mode", "cooperative")
+
+-- ----------------------------------------------------------------- PassWall
+
+o = s:taboption("passwall", ListValue, "passwall_mode", translate("Coexistence"))
+o:value("cooperative", translate("Keep PassWall's DNS (recommended)"))
+o:value("off", translate("Leave PassWall alone"))
+o.default = "cooperative"
+o.description = translate(
+	"PassWall splits traffic at the routing layer and UU at its own policy " ..
+	"rule, so the two already send a boosted device's game traffic into UU's " ..
+	"tunnel and everything else into the proxy without either being configured." ..
+	"<br /><br />What does collide is DNS. For every boosted device UU redirects " ..
+	"UDP/53 to 8.8.8.8 inside that device's game tunnel, and blocks the device's " ..
+	"IPv6 DNS outright. That bypasses PassWall's resolver chain (dnsmasq to " ..
+	"chinadns-ng to sing-box); and since UU never removes the IPv6 block, one " ..
+	"session of gaming leaves the device unable to resolve over IPv6 until the " ..
+	"next reboot." ..
+	"<br /><br /><strong>Keep PassWall's DNS</strong> puts the router's own " ..
+	"address back in front of that redirect and removes the IPv6 block. UU only " ..
+	"checks that its rule was accepted, not that packets reach it, so " ..
+	"acceleration is unaffected." ..
+	"<br /><strong>Leave PassWall alone</strong> changes nothing." ..
+	"<br />Nothing happens unless PassWall is installed.")
 
 -- -------------------------------------------------------------------- UA3F
 
