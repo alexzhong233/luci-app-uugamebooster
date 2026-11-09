@@ -121,11 +121,12 @@ function uuRender(d) {
 			  d.boosted.replace(/ /g, '</code> <code>') + '</code>'
 			: '<span class="uu-muted"><%:none - boost a device in the UU app%></span>');
 
-		// UA3F and PassWall rows only appear when they are installed, so
+		// UA3F, PassWall and HomeProxy rows only appear when installed, so
 		// whichever block comes last closes the panel.
 		var ua3f = d.ua3f_installed;
 		var pw = d.passwall_installed;
-		var afterOc = ua3f || pw;
+		var hp = d.homeproxy_installed;
+		var afterOc = ua3f || pw || hp;
 		if (!d.openclash_installed) {
 			h += uuRow('<%:OpenClash%>', '<span class="uu-muted"><%:not installed%></span>', !afterOc);
 		} else {
@@ -149,23 +150,43 @@ function uuRender(d) {
 				? '<span class="uu-dot ok"></span><span class="t-ok"><%:Running%></span>'
 				: '<span class="uu-dot warn"></span><span class="t-warn"><%:installed, not running%></span>') +
 				(d.ua3f_mode == 'off' ? ' <span class="uu-muted">&ndash; <%:left alone%></span>' : ''),
-				!ucoop && !pw);
+				!ucoop && !pw && !hp);
 
 			if (ucoop) {
 				h += uuRow('<%:Exempted from UA3F%>', (d.ua3f_exempted > 0)
 					? '<span class="uu-num">' + d.ua3f_exempted + '</span> <%:game destinations, for boosted devices only%>'
-					: '<span class="uu-muted"><%:nothing - no device is being boosted%></span>', !pw);
+					: '<span class="uu-muted"><%:nothing - no device is being boosted%></span>', !pw && !hp);
 			}
 		}
 
 		if (pw) {
-			h += uuRow('<%:PassWall%>', (d.passwall_mode == 'off')
+			var pwoff = (d.passwall_mode == 'off');
+			h += uuRow('<%:PassWall%>', pwoff
 				? '<span class="uu-dot warn"></span><span class="t-warn"><%:installed%></span> <span class="uu-muted">&ndash; <%:left alone%></span>'
-				: '<span class="uu-dot ok"></span><span class="t-ok"><%:DNS kept%></span>');
+				: '<span class="uu-dot ok"></span><span class="t-ok"><%:DNS kept%></span>',
+				pwoff && !hp);
 
-			if (d.passwall_mode != 'off') {
+			if (!pwoff) {
 				h += uuRow('<%:Protected from the DNS redirect%>', (d.passwall_exempted > 0)
 					? '<span class="uu-num">' + d.passwall_exempted + '</span> <%:boosted devices%>'
+					: '<span class="uu-muted"><%:nothing - no device is being boosted%></span>', !hp);
+			}
+		}
+
+		if (hp) {
+			var hpoff = (d.homeproxy_mode == 'off');
+			var hpcoop = !hpoff && d.homeproxy_tun;
+			h += uuRow('<%:HomeProxy%>', (d.homeproxy_running
+				? '<span class="uu-dot ok"></span><span class="t-ok"><%:Running%></span>'
+				: '<span class="uu-dot warn"></span><span class="t-warn"><%:installed, not running%></span>') +
+				(hpoff ? ' <span class="uu-muted">&ndash; <%:left alone%></span>'
+				: (d.homeproxy_running && !d.homeproxy_tun)
+				? '<br /><span class="uu-muted"><%:Only its TUN mode with auto-redirect is handled. See the HomeProxy tab.%></span>' : ''),
+				!hpcoop);
+
+			if (hpcoop) {
+				h += uuRow('<%:Exempted from HomeProxy%>', (d.homeproxy_exempted > 0)
+					? '<span class="uu-num">' + d.homeproxy_exempted + '</span> <%:game destinations, for boosted devices only%>'
 					: '<span class="uu-muted"><%:nothing - no device is being boosted%></span>', true);
 			}
 		}
