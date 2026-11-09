@@ -53,17 +53,25 @@ function act_status()
 	if e.cloud == "" then e.cloud = nil end
 	e.activated = det:match("activated=([^\r\n]*)")
 	if e.activated == "" then e.activated = nil end
+	-- The vendor build never writes activate_status - it keeps its registration
+	-- in /tmp/uu/.uu.db, a file it neither documents nor exposes. Demanding the
+	-- plugin build's file therefore left every OEM install stuck on "registering"
+	-- forever, even while the router was bound and boosting. For OEM builds the
+	-- control connection is all we can honestly observe, so that is what "ready"
+	-- is based on; the template says the rest is managed from the app.
+	e.oem = (e.build or ""):match("^oem") ~= nil
+
 	-- Three distinct phases after a start, which look identical from the
 	-- outside but mean different things to someone waiting to bind:
 	--   starting     process up, no control connection yet
 	--   registering  talking to NetEase, no registration record yet
 	--   ready        bindable in the app
-	e.ready = (e.running and e.cloud ~= nil and e.activated ~= nil)
+	e.ready = (e.running and e.cloud ~= nil and (e.activated ~= nil or e.oem))
 	if not e.running then
 		e.phase = "stopped"
 	elseif e.cloud == nil then
 		e.phase = "starting"
-	elseif e.activated == nil then
+	elseif e.activated == nil and not e.oem then
 		e.phase = "registering"
 	else
 		e.phase = "ready"

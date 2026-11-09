@@ -21,7 +21,12 @@
 # Only ever restores a missing file, never a stale one: a core that dropped its
 # registration on purpose must not have it appear again behind its back.
 
-FILES="activate_status"
+# Both names are in play: the plugin build writes activate_status, the vendor
+# (OEM) build keeps the same record in .uu.db. Backing up only one of them left
+# half the installs unprotected - on OEM builds the record was gone every reboot,
+# and since the core never registers itself again, the page sat on "registering"
+# until the router was bound from the app by hand.
+FILES="activate_status .uu.db"
 
 usage() {
 	echo "usage: uu-state <restore|save|keep> <run_dir> <state_dir>" >&2
