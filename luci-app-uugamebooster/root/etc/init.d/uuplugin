@@ -252,6 +252,40 @@ download_plugin() {
 # Fetch everything the emulated OEM build needs. Safe to re-run: each piece is
 # skipped when it is already present and valid.
 # Undo the emulation wrapper, for a router that runs the OEM build natively.
+# activate_status is written once, right after the router is bound, and never
+# touched again - and it is what the UI reads to say "this router is registered".
+# It lives in tmpfs like everything else under /tmp, so the one write the core
+# makes is lost on the next boot and the page falls back to "registering".
+#
+# Point it at persistent storage instead: the core keeps opening
+# $RUN_DIR/activate_status and gets the real file through the link, with no idea
+# it moved. tmpfs wipes the link too, so this runs on every start - and if the
+# core ever unlinks and recreates the file (turning it into a plain file), the
+# next start migrates that copy back out and rebuilds the link.
+#
+# .uu.db is deliberately NOT linked: it is a live database the core rewrites,
+# and a link would put every write on flash. uu-state snapshots that one instead.
+link_state() {
+	local f="activate_status"
+
+	mkdir -p "$RUN_DIR" "$STATE_DIR" 2>/dev/null
+
+	[ -L "$RUN_DIR/$f" ] && return 0
+
+	if [ -f "$RUN_DIR/$f" ]; then
+		# The core wrote it this session, before we got here - keep that copy
+		# unless an older one is already on flash.
+		[ -s "$STATE_DIR/$f" ] || cp -f "$RUN_DIR/$f" "$STATE_DIR/$f" 2>/dev/null
+		rm -f "$RUN_DIR/$f" 2>/dev/null
+	fi
+
+	[ -e "$STATE_DIR/$f" ] || return 0
+
+	ln -s "$STATE_DIR/$f" "$RUN_DIR/$f" 2>/dev/null && \
+		uu_log "linked $RUN_DIR/$f -> $STATE_DIR/$f (survives reboot)"
+	return 0
+}
+
 restore_guardian() {
 	[ -f "$OEM_DIR/xuplugin-guardian.real" ] || return 0
 	grep -q qemu "$OEM_DIR/xuplugin-guardian" 2>/dev/null || return 0
@@ -627,6 +661,7 @@ start_service() {
 	# restores, never overwrites a record the core has already rewritten.
 	if [ "$PERSIST_STATE" = "1" ] && [ -x "$STATE" ]; then
 		"$STATE" restore "$RUN_DIR" "$STATE_DIR"
+		link_state
 	fi
 
 	if [ ! -e /dev/net/tun ]; then

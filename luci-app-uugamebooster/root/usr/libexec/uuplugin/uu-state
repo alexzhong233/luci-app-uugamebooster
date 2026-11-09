@@ -56,6 +56,24 @@ do_restore() {
 	return 0
 }
 
+# The core creates activate_status as a plain file in tmpfs the moment the
+# router gets bound, and only ever writes it once. Waiting for the next start to
+# migrate it leaves a window in which a reboot throws it away again, so the
+# keep loop adopts it within one interval: copy to flash, replace with a link.
+do_adopt() {
+	local run="$1" st="$2" f="activate_status"
+
+	[ -L "$run/$f" ] && return 0
+	[ -f "$run/$f" ] || return 0
+
+	mkdir -p "$st" 2>/dev/null
+	put "$run/$f" "$st/$f" || return 0
+	rm -f "$run/$f" 2>/dev/null
+	ln -s "$st/$f" "$run/$f" 2>/dev/null && \
+		logger -t uu-state -p daemon.info "adopted $f onto $st"
+	return 0
+}
+
 do_save() {
 	local run="$1" st="$2" f
 	[ -d "$run" ] || return 0
@@ -80,6 +98,7 @@ case "$CMD" in
 		# escalates to SIGKILL; backgrounding it lets the trap run at once.
 		trap 'exit 0' TERM INT
 		while :; do
+			do_adopt "$RUN" "$ST"
 			do_save "$RUN" "$ST"
 			sleep 15 & wait $!
 		done
