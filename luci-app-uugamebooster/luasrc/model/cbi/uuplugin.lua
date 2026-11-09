@@ -148,8 +148,27 @@ o = s:taboption("passwall", ListValue, "passwall_mode", translate("Coexistence")
 o:value("cooperative", translate("Keep PassWall's DNS (recommended)"))
 o:value("off", translate("Leave PassWall alone"))
 o.default = "cooperative"
--- 单行：i18n-scan 把多段拼接当成一个 msgid，分行写容易和 .po 对不上。
-o.description = translate("PassWall splits traffic at the routing layer and UU at its own policy rule, so a boosted device's game traffic already goes into UU's tunnel and everything else into the proxy. What collides is DNS: UU redirects UDP/53 into the game tunnel and blocks the device's IPv6 DNS, which bypasses PassWall's resolver chain and, since UU never removes the block, leaves IPv6 resolution broken until the next reboot.<br /><br /><strong>Keep PassWall's DNS</strong> puts the router's own address back in front of that redirect and removes the IPv6 block. UU only checks that its rule was accepted, not that packets reach it, so acceleration is unaffected.<br /><strong>Leave PassWall alone</strong> changes nothing.<br />Nothing happens unless PassWall is installed.")
+
+o = s:taboption("passwall", Value, "passwall_interval",
+	translate("How often to re-check UU's DNS redirect"),
+	translate("In seconds. UU re-inserts its redirect at the top of the chain every time a boost starts, so this decides how quickly it gets pushed back."))
+o.datatype = "range(1,60)"
+o.default = "5"
+o:depends("passwall_mode", "cooperative")
+
+-- Split into short sentences: a single 800-character msgid misses its catalogue
+-- entry over one stray space, and is miserable to translate. One translate()
+-- per sentence keeps each msgid checkable against the .po.
+o.description =
+	translate("PassWall splits traffic at the routing layer and UU at its own policy rule, so a boosted device's game traffic already goes into UU's tunnel and everything else into the proxy.") ..
+	"<br /><br />" ..
+	translate("What collides is DNS: UU sends each boosted device's UDP/53 into the game tunnel and blocks its IPv6 DNS outright, which bypasses PassWall's resolver chain. UU never removes the IPv6 block, so that device cannot resolve over IPv6 until the next reboot.") ..
+	"<br /><br />" ..
+	translate("<strong>Keep PassWall's DNS</strong> puts the router's own address back in front of that redirect and removes the IPv6 block. UU only checks that its rule was accepted, not that packets reach it, so acceleration is unaffected.") ..
+	"<br />" ..
+	translate("<strong>Leave PassWall alone</strong> changes nothing.") ..
+	"<br />" ..
+	translate("Nothing happens unless PassWall is installed.")
 
 -- -------------------------------------------------------------------- UA3F
 

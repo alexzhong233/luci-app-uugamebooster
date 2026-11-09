@@ -108,7 +108,7 @@ msgstr ""
 
 #: luci-app-uugamebooster/luasrc/model/cbi/uuplugin.lua:86
 #: luci-app-uugamebooster/luasrc/model/cbi/uuplugin.lua:147
-#: luci-app-uugamebooster/luasrc/model/cbi/uuplugin.lua:156
+#: luci-app-uugamebooster/luasrc/model/cbi/uuplugin.lua:175
 #: luci-app-uugamebooster/luasrc/view/uuplugin/uuplugin_status.htm:137
 msgid "Coexistence"
 msgstr ""
@@ -177,51 +177,75 @@ msgstr ""
 msgid "Leave PassWall alone"
 msgstr ""
 
-#: luci-app-uugamebooster/luasrc/model/cbi/uuplugin.lua:152
-msgid "PassWall splits traffic at the routing layer and UU at its own policy rule, so a boosted device's game traffic already goes into UU's tunnel and everything else into the proxy. What collides is DNS: UU redirects UDP/53 into the game tunnel and blocks the device's IPv6 DNS, which bypasses PassWall's resolver chain and, since UU never removes the block, leaves IPv6 resolution broken until the next reboot.<br /><br /><strong>Keep PassWall's DNS</strong> puts the router's own address back in front of that redirect and removes the IPv6 block. UU only checks that its rule was accepted, not that packets reach it, so acceleration is unaffected.<br /><strong>Leave PassWall alone</strong> changes nothing.<br />Nothing happens unless PassWall is installed."
+#: luci-app-uugamebooster/luasrc/model/cbi/uuplugin.lua:153
+msgid "How often to re-check UU's DNS redirect"
 msgstr ""
 
-#: luci-app-uugamebooster/luasrc/model/cbi/uuplugin.lua:157
-msgid "Keep game traffic out of UA3F (recommended)"
+#: luci-app-uugamebooster/luasrc/model/cbi/uuplugin.lua:154
+msgid "In seconds. UU re-inserts its redirect at the top of the chain every time a boost starts, so this decides how quickly it gets pushed back."
 msgstr ""
 
-#: luci-app-uugamebooster/luasrc/model/cbi/uuplugin.lua:158
-msgid "Leave UA3F alone"
+#: luci-app-uugamebooster/luasrc/model/cbi/uuplugin.lua:163
+msgid "PassWall splits traffic at the routing layer and UU at its own policy rule, so a boosted device's game traffic already goes into UU's tunnel and everything else into the proxy."
 msgstr ""
 
-#: luci-app-uugamebooster/luasrc/model/cbi/uuplugin.lua:160
-msgid "UA3F rewrites the User-Agent of LAN traffic by diverting TCP to itself, which also takes a boosted device's game connections away from UU.<br /><br /><strong>Keep game traffic out of UA3F</strong> exempts only the game servers UU routes into its tunnel, and only for boosted devices. Everything else from that device, its web browsing included, still goes through UA3F.<br /><strong>Leave UA3F alone</strong> changes nothing.<br />Nothing happens unless UA3F is installed and running."
+#: luci-app-uugamebooster/luasrc/model/cbi/uuplugin.lua:165
+msgid "What collides is DNS: UU sends each boosted device's UDP/53 into the game tunnel and blocks its IPv6 DNS outright, which bypasses PassWall's resolver chain. UU never removes the IPv6 block, so that device cannot resolve over IPv6 until the next reboot."
 msgstr ""
 
-#: luci-app-uugamebooster/luasrc/model/cbi/uuplugin.lua:173
-msgid "Devices UU is allowed to see"
+#: luci-app-uugamebooster/luasrc/model/cbi/uuplugin.lua:167
+msgid "<strong>Keep PassWall's DNS</strong> puts the router's own address back in front of that redirect and removes the IPv6 block. UU only checks that its rule was accepted, not that packets reach it, so acceleration is unaffected."
 msgstr ""
 
-#: luci-app-uugamebooster/luasrc/model/cbi/uuplugin.lua:174
-msgid "Every device on the network"
+#: luci-app-uugamebooster/luasrc/model/cbi/uuplugin.lua:169
+msgid "<strong>Leave PassWall alone</strong> changes nothing."
 msgstr ""
 
-#: luci-app-uugamebooster/luasrc/model/cbi/uuplugin.lua:175
-msgid "Everything except the devices below"
+#: luci-app-uugamebooster/luasrc/model/cbi/uuplugin.lua:171
+msgid "Nothing happens unless PassWall is installed."
 msgstr ""
 
 #: luci-app-uugamebooster/luasrc/model/cbi/uuplugin.lua:176
-msgid "Only the devices below"
+msgid "Keep game traffic out of UA3F (recommended)"
 msgstr ""
 
-#: luci-app-uugamebooster/luasrc/model/cbi/uuplugin.lua:178
-msgid "The UU app lists whatever the plugin finds on your network, which by default is everything. This narrows what it can find at all, so a device left out never appears in the app, is never offered for boosting, and is never reported to NetEase.<br />Nothing else on the router is affected: the real DHCP leases and ARP table are untouched, and no traffic is blocked."
+#: luci-app-uugamebooster/luasrc/model/cbi/uuplugin.lua:177
+msgid "Leave UA3F alone"
 msgstr ""
 
-#: luci-app-uugamebooster/luasrc/model/cbi/uuplugin.lua:186
-msgid "By IP address"
-msgstr ""
-
-#: luci-app-uugamebooster/luasrc/model/cbi/uuplugin.lua:191
-msgid "By MAC address"
+#: luci-app-uugamebooster/luasrc/model/cbi/uuplugin.lua:179
+msgid "UA3F rewrites the User-Agent of LAN traffic by diverting TCP to itself, which also takes a boosted device's game connections away from UU.<br /><br /><strong>Keep game traffic out of UA3F</strong> exempts only the game servers UU routes into its tunnel, and only for boosted devices. Everything else from that device, its web browsing included, still goes through UA3F.<br /><strong>Leave UA3F alone</strong> changes nothing.<br />Nothing happens unless UA3F is installed and running."
 msgstr ""
 
 #: luci-app-uugamebooster/luasrc/model/cbi/uuplugin.lua:192
+msgid "Devices UU is allowed to see"
+msgstr ""
+
+#: luci-app-uugamebooster/luasrc/model/cbi/uuplugin.lua:193
+msgid "Every device on the network"
+msgstr ""
+
+#: luci-app-uugamebooster/luasrc/model/cbi/uuplugin.lua:194
+msgid "Everything except the devices below"
+msgstr ""
+
+#: luci-app-uugamebooster/luasrc/model/cbi/uuplugin.lua:195
+msgid "Only the devices below"
+msgstr ""
+
+#: luci-app-uugamebooster/luasrc/model/cbi/uuplugin.lua:197
+msgid "The UU app lists whatever the plugin finds on your network, which by default is everything. This narrows what it can find at all, so a device left out never appears in the app, is never offered for boosting, and is never reported to NetEase.<br />Nothing else on the router is affected: the real DHCP leases and ARP table are untouched, and no traffic is blocked."
+msgstr ""
+
+#: luci-app-uugamebooster/luasrc/model/cbi/uuplugin.lua:205
+msgid "By IP address"
+msgstr ""
+
+#: luci-app-uugamebooster/luasrc/model/cbi/uuplugin.lua:210
+msgid "By MAC address"
+msgstr ""
+
+#: luci-app-uugamebooster/luasrc/model/cbi/uuplugin.lua:211
 msgid "Steadier than an IP for anything using DHCP. Resolved to whichever address the device currently holds."
 msgstr ""
 

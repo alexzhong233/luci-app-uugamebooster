@@ -18,6 +18,8 @@ config uuplugin
 	option ua3f_mode 'cooperative'
 	# off | cooperative   (only acts while PassWall is installed)
 	option passwall_mode 'cooperative'
+	# seconds; independent of oc_interval, which belongs to the OpenClash tab
+	option passwall_interval '5'
 	# all | blacklist | whitelist
 	option device_mode 'all'
 	# match devices by MAC as well as IP

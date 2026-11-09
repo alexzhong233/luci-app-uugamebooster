@@ -149,6 +149,17 @@ scan() {
 	return 0
 }
 
+# Independent of oc_interval: that one belongs to the OpenClash tab, and moving
+# one slider must not silently retime the other. Re-read every round so a Save
+# & Apply takes effect without restarting the service.
+pws_interval() {
+	local n
+	n="$(uci -q get uuplugin.@uuplugin[0].passwall_interval 2>/dev/null)"
+	case "$n" in ''|*[!0-9]*) n=5 ;; esac
+	[ "$n" -ge 1 ] && [ "$n" -le 60 ] || n=5
+	echo "$n"
+}
+
 # ---------------------------------------------------------------- entry point
 
 LANIF="$(lan_if)"
@@ -186,5 +197,5 @@ trap 'exit 0' TERM INT
 log "PassWall coexistence: exempting $LANIP from UU's DNS redirect (lan=$LANIF)"
 while :; do
 	scan
-	nap "$INTERVAL"
+	nap "$(pws_interval)"
 done

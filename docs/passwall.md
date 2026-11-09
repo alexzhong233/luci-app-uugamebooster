@@ -72,7 +72,7 @@ that uses the system resolver fails.
 |---|---|
 | insert `-t nat PREROUTING` position 1: `-i <lan> -s <ip> -d <lan ip> -p udp --dport 53 -j RETURN` | the device's DNS goes to PassWall's resolver again |
 | delete `ip6tables -t filter` rules matching `--dport 53 … --mac-source … -j DROP` in `INPUT` and `FORWARD` | the device's IPv6 resolution works again, and stays working after the boost stops |
-| re-check every `oc_interval` seconds | UU inserts its rule at position 1 on every boost, and a `fw4` reload can flush the table; both are corrected within one interval |
+| re-check every `passwall_interval` seconds (default 5, independent of the OpenClash tab's `oc_interval`) | UU inserts its rule at position 1 on every boost, and a `fw4` reload can flush the table; both are corrected within one interval |
 | `cleanup` when the service is switched off | our rules are ours, so they go |
 
 Only the **router's own address** is exempted, not the whole of port 53. A query

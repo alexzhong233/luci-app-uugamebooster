@@ -19,6 +19,12 @@ msgstr "加速对象"
 msgid "OpenClash"
 msgstr "OpenClash"
 
+msgid "PassWall"
+msgstr "PassWall"
+
+msgid "UA3F"
+msgstr "UA3F"
+
 msgid "Device visibility"
 msgstr "设备可见性"
 
@@ -118,6 +124,42 @@ msgstr "允许分流的最大网段"
 msgid "A safety limit, as a prefix length: never send a route broader than this around OpenClash. Stops one stray default route from pulling the whole internet out of the proxy."
 msgstr "以前缀长度表示的安全上限：比该值更宽的路由绝不绕过 OpenClash。可避免一条异常的默认路由把整个互联网都带离代理。"
 
+msgid "Keep PassWall's DNS (recommended)"
+msgstr "保留 PassWall 的 DNS（推荐）"
+
+msgid "Leave PassWall alone"
+msgstr "不干预 PassWall"
+
+msgid "How often to re-check UU's DNS redirect"
+msgstr "多久检查一次 UU 的 DNS 重定向"
+
+msgid "In seconds. UU re-inserts its redirect at the top of the chain every time a boost starts, so this decides how quickly it gets pushed back."
+msgstr "单位秒。UU 每次开始加速都会把重定向插到链首，这里决定多久把它顶回去。"
+
+msgid "PassWall splits traffic at the routing layer and UU at its own policy rule, so a boosted device's game traffic already goes into UU's tunnel and everything else into the proxy."
+msgstr "PassWall 在路由层分流，UU 用自己的策略路由，所以被加速设备的游戏流量本来就进 UU 隧道，其余走代理。"
+
+msgid "What collides is DNS: UU sends each boosted device's UDP/53 into the game tunnel and blocks its IPv6 DNS outright, which bypasses PassWall's resolver chain. UU never removes the IPv6 block, so that device cannot resolve over IPv6 until the next reboot."
+msgstr "真正冲突的是 DNS：UU 把被加速设备的 UDP/53 送进游戏隧道，并直接封掉它的 IPv6 DNS，绕过 PassWall 的解析链。而 UU 停止加速时不会清理这个封锁，设备重启前 IPv6 解析一直是坏的。"
+
+msgid "<strong>Keep PassWall's DNS</strong> puts the router's own address back in front of that redirect and removes the IPv6 block. UU only checks that its rule was accepted, not that packets reach it, so acceleration is unaffected."
+msgstr "<strong>保留 PassWall 的 DNS</strong>：把路由器自己的地址插回这条重定向前面，并清掉 IPv6 封锁。UU 只校验规则「被接受」，不校验包是否真的到达，所以加速不受影响。"
+
+msgid "<strong>Leave PassWall alone</strong> changes nothing."
+msgstr "<strong>不干预 PassWall</strong>：什么都不做。"
+
+msgid "Nothing happens unless PassWall is installed."
+msgstr "未安装 PassWall 时本项不生效。"
+
+msgid "Keep game traffic out of UA3F (recommended)"
+msgstr "游戏流量不经过 UA3F（推荐）"
+
+msgid "Leave UA3F alone"
+msgstr "不改动 UA3F"
+
+msgid "UA3F rewrites the User-Agent of LAN traffic by diverting TCP to itself, which also takes a boosted device's game connections away from UU.<br /><br /><strong>Keep game traffic out of UA3F</strong> exempts only the game servers UU routes into its tunnel, and only for boosted devices. Everything else from that device, its web browsing included, still goes through UA3F.<br /><strong>Leave UA3F alone</strong> changes nothing.<br />Nothing happens unless UA3F is installed and running."
+msgstr "UA3F 通过把局域网的 TCP 流量转给自己来改写 User-Agent，这也会把被加速设备的游戏连接从 UU 手里抢走。<br /><br /><strong>游戏流量不经过 UA3F</strong> 只放行 UU 导入隧道的游戏服务器地址，且仅对被加速的设备生效。该设备的其他流量，包括网页浏览，仍然经过 UA3F。<br /><strong>不改动 UA3F</strong> 则什么都不做。<br />只有在 UA3F 已安装并运行时才会生效。"
+
 msgid "Devices UU is allowed to see"
 msgstr "允许 UU 看到的设备"
 
@@ -214,6 +256,15 @@ msgstr "网易连接"
 msgid "connecting"
 msgstr "正在连接"
 
+msgid "Will not start after a reboot"
+msgstr "重启后不会自动启动"
+
+msgid "Boot start is off although the service is enabled. Save & Apply, or run"
+msgstr "服务已启用，但开机自启动是关闭的。点击保存并应用，或执行"
+
+msgid ", to turn it back on."
+msgstr "，即可重新开启。"
+
 msgid "Conflicting UU installation"
 msgstr "检测到冲突的 UU 安装"
 
@@ -234,6 +285,9 @@ msgstr "通用版本 —— 仅支持游戏主机"
 
 msgid "Running"
 msgstr "运行中"
+
+msgid "iptables here has no DNAT target; nftables handles the UU DNS redirect instead."
+msgstr "此固件的 iptables 没有 DNAT 目标，UU 的 DNS 重定向改由 nftables 处理。"
 
 msgid "Tunnel"
 msgstr "隧道"
@@ -262,53 +316,11 @@ msgstr "个游戏目标地址，仅对已加速设备生效"
 msgid "nothing - no device is being boosted"
 msgstr "无 —— 当前没有设备在加速"
 
-msgid "Status"
-msgstr "状态"
-
-msgid "Collecting data..."
-msgstr "正在获取数据…"
-
-msgid "UA3F"
-msgstr "UA3F"
-
-msgid "Keep game traffic out of UA3F (recommended)"
-msgstr "游戏流量不经过 UA3F（推荐）"
-
-msgid "Leave UA3F alone"
-msgstr "不改动 UA3F"
-
-msgid "UA3F rewrites the User-Agent of LAN traffic by diverting TCP to itself, which also takes a boosted device's game connections away from UU.<br /><br /><strong>Keep game traffic out of UA3F</strong> exempts only the game servers UU routes into its tunnel, and only for boosted devices. Everything else from that device, its web browsing included, still goes through UA3F.<br /><strong>Leave UA3F alone</strong> changes nothing.<br />Nothing happens unless UA3F is installed and running."
-msgstr "UA3F 通过把局域网的 TCP 流量转给自己来改写 User-Agent，这也会把被加速设备的游戏连接从 UU 手里抢走。<br /><br /><strong>游戏流量不经过 UA3F</strong> 只放行 UU 导入隧道的游戏服务器地址，且仅对被加速的设备生效。该设备的其他流量，包括网页浏览，仍然经过 UA3F。<br /><strong>不改动 UA3F</strong> 则什么都不做。<br />只有在 UA3F 已安装并运行时才会生效。"
-
 msgid "left alone"
 msgstr "未改动"
 
 msgid "Exempted from UA3F"
 msgstr "已排除 UA3F"
-
-msgid "Will not start after a reboot"
-msgstr "重启后不会自动启动"
-
-msgid "iptables here has no DNAT target; nftables handles the UU DNS redirect instead."
-msgstr "此固件的 iptables 没有 DNAT 目标，UU 的 DNS 重定向改由 nftables 处理。"
-
-msgid "Boot start is off although the service is enabled. Save & Apply, or run"
-msgstr "服务已启用，但开机自启动是关闭的。点击保存并应用，或执行"
-
-msgid ", to turn it back on."
-msgstr "，即可重新开启。"
-
-msgid "PassWall"
-msgstr "PassWall"
-
-msgid "Keep PassWall's DNS (recommended)"
-msgstr "保留 PassWall 的 DNS（推荐）"
-
-msgid "Leave PassWall alone"
-msgstr "不干预 PassWall"
-
-msgid "PassWall splits traffic at the routing layer and UU at its own policy rule, so a boosted device's game traffic already goes into UU's tunnel and everything else into the proxy. What collides is DNS: UU redirects UDP/53 into the game tunnel and blocks the device's IPv6 DNS, which bypasses PassWall's resolver chain and, since UU never removes the block, leaves IPv6 resolution broken until the next reboot.<br /><br /><strong>Keep PassWall's DNS</strong> puts the router's own address back in front of that redirect and removes the IPv6 block. UU only checks that its rule was accepted, not that packets reach it, so acceleration is unaffected.<br /><strong>Leave PassWall alone</strong> changes nothing.<br />Nothing happens unless PassWall is installed."
-msgstr "PassWall 在路由层分流，UU 用自己的策略路由，两者本来就已经各走各的：被加速设备的游戏流量进 UU 隧道，其余照走代理。真正冲突的是 DNS —— UU 把 UDP/53 重定向进游戏隧道，并直接封掉该设备的 IPv6 DNS，于是绕过 PassWall 的解析链；而 UU 停止加速时不会清理这个封锁，设备重启前 IPv6 解析一直是坏的。<br /><br /><strong>保留 PassWall 的 DNS</strong>：把路由器自己的地址插回这条重定向前面，并清掉 IPv6 封锁。UU 只校验规则「被接受」，不校验包是否真的到达，所以加速不受影响。<br /><strong>不干预 PassWall</strong>：什么都不做。<br />未安装 PassWall 时本项不生效。"
 
 msgid "installed"
 msgstr "已安装"
@@ -322,3 +334,8 @@ msgstr "已避开 DNS 重定向"
 msgid "boosted devices"
 msgstr "台被加速设备"
 
+msgid "Status"
+msgstr "状态"
+
+msgid "Collecting data..."
+msgstr "正在获取数据…"
