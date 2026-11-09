@@ -49,3 +49,13 @@ from the same path parts and had to move with it, otherwise the status panel
 endpoint daily, which merges the parent repository's default branch into
 `master`. A conflict is reported in the run log and left alone — it is never
 resolved by guessing.
+
+## 5. 中文翻译
+
+新增的字符串（PassWall 标签页、状态面板那两行）在 `po/zh_Hans/uugamebooster.po`
+里补了 8 条，`po/templates/uugamebooster.pot` 用 `tools/i18n-scan.py` 重新生成。
+
+`.lmo` 是编译产物，构建时由 `luci.mk` 从 po 生成，所以**热替换 .lua/.htm 不会
+带出中文**——这时页面回落到英文原文。想在不重编固件的情况下看效果，直接放一份
+预编译好的目录：`dist/uugamebooster.zh-cn.lmo`（用 `tools/po2lmo.py` 生成，
+与当前 po 一致；改过 po 要重新生成）。

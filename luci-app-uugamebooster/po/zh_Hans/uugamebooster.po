@@ -297,3 +297,28 @@ msgstr "服务已启用，但开机自启动是关闭的。点击保存并应用
 
 msgid ", to turn it back on."
 msgstr "，即可重新开启。"
+
+msgid "PassWall"
+msgstr "PassWall"
+
+msgid "Keep PassWall's DNS (recommended)"
+msgstr "保留 PassWall 的 DNS（推荐）"
+
+msgid "Leave PassWall alone"
+msgstr "不干预 PassWall"
+
+msgid "PassWall splits traffic at the routing layer and UU at its own policy rule, so a boosted device's game traffic already goes into UU's tunnel and everything else into the proxy. What collides is DNS: UU redirects UDP/53 into the game tunnel and blocks the device's IPv6 DNS, which bypasses PassWall's resolver chain and, since UU never removes the block, leaves IPv6 resolution broken until the next reboot.<br /><br /><strong>Keep PassWall's DNS</strong> puts the router's own address back in front of that redirect and removes the IPv6 block. UU only checks that its rule was accepted, not that packets reach it, so acceleration is unaffected.<br /><strong>Leave PassWall alone</strong> changes nothing.<br />Nothing happens unless PassWall is installed."
+msgstr "PassWall 在路由层分流，UU 用自己的策略路由，两者本来就已经各走各的：被加速设备的游戏流量进 UU 隧道，其余照走代理。真正冲突的是 DNS —— UU 把 UDP/53 重定向进游戏隧道，并直接封掉该设备的 IPv6 DNS，于是绕过 PassWall 的解析链；而 UU 停止加速时不会清理这个封锁，设备重启前 IPv6 解析一直是坏的。<br /><br /><strong>保留 PassWall 的 DNS</strong>：把路由器自己的地址插回这条重定向前面，并清掉 IPv6 封锁。UU 只校验规则「被接受」，不校验包是否真的到达，所以加速不受影响。<br /><strong>不干预 PassWall</strong>：什么都不做。<br />未安装 PassWall 时本项不生效。"
+
+msgid "installed"
+msgstr "已安装"
+
+msgid "DNS kept"
+msgstr "DNS 正常"
+
+msgid "Protected from the DNS redirect"
+msgstr "已避开 DNS 重定向"
+
+msgid "boosted devices"
+msgstr "台被加速设备"
+

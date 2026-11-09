@@ -148,22 +148,8 @@ o = s:taboption("passwall", ListValue, "passwall_mode", translate("Coexistence")
 o:value("cooperative", translate("Keep PassWall's DNS (recommended)"))
 o:value("off", translate("Leave PassWall alone"))
 o.default = "cooperative"
-o.description = translate(
-	"PassWall splits traffic at the routing layer and UU at its own policy " ..
-	"rule, so the two already send a boosted device's game traffic into UU's " ..
-	"tunnel and everything else into the proxy without either being configured." ..
-	"<br /><br />What does collide is DNS. For every boosted device UU redirects " ..
-	"UDP/53 to 8.8.8.8 inside that device's game tunnel, and blocks the device's " ..
-	"IPv6 DNS outright. That bypasses PassWall's resolver chain (dnsmasq to " ..
-	"chinadns-ng to sing-box); and since UU never removes the IPv6 block, one " ..
-	"session of gaming leaves the device unable to resolve over IPv6 until the " ..
-	"next reboot." ..
-	"<br /><br /><strong>Keep PassWall's DNS</strong> puts the router's own " ..
-	"address back in front of that redirect and removes the IPv6 block. UU only " ..
-	"checks that its rule was accepted, not that packets reach it, so " ..
-	"acceleration is unaffected." ..
-	"<br /><strong>Leave PassWall alone</strong> changes nothing." ..
-	"<br />Nothing happens unless PassWall is installed.")
+-- 单行：i18n-scan 把多段拼接当成一个 msgid，分行写容易和 .po 对不上。
+o.description = translate("PassWall splits traffic at the routing layer and UU at its own policy rule, so a boosted device's game traffic already goes into UU's tunnel and everything else into the proxy. What collides is DNS: UU redirects UDP/53 into the game tunnel and blocks the device's IPv6 DNS, which bypasses PassWall's resolver chain and, since UU never removes the block, leaves IPv6 resolution broken until the next reboot.<br /><br /><strong>Keep PassWall's DNS</strong> puts the router's own address back in front of that redirect and removes the IPv6 block. UU only checks that its rule was accepted, not that packets reach it, so acceleration is unaffected.<br /><strong>Leave PassWall alone</strong> changes nothing.<br />Nothing happens unless PassWall is installed.")
 
 -- -------------------------------------------------------------------- UA3F
 
