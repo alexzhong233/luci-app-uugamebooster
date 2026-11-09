@@ -1,9 +1,6 @@
 config uuplugin
 	option enabled '0'
-	# 上报给网易云端的设备名（写进 h3c_info 的 productname），UU App 里显示的
-	# 就是它。与下面的 oem_model 不是一个东西：那个决定下载哪家的厂商包。
-	# 改它等于换了一台设备，云端会要求重新绑定。
-	option model 'RE-CS-02'
+	option model 'OpenWrt'
 	option addfw '1'
 	# auto = NetEase's plain OpenWrt build (consoles only)
 	# oem  = its vendor build, which also boosts PCs and phones
