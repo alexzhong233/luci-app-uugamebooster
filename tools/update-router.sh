@@ -9,11 +9,16 @@
 #
 # 只覆盖运行文件，**不动 /etc/config/uuplugin**（设备白名单、开关状态都在里面）。
 # 结束前会在本机做语法校验，再重启服务并打印状态。
+#
+# 下载策略：优先整包（一次 HTTPS 请求，最不容易触发 OpenWrt uclient-fetch 的
+# "SSL error: ... reason(1)" 握手中断）；整包拿不到才退回逐个文件，每个文件重试 3 次。
+# 想调重试次数：UU_RETRY=5；想指定整包地址：UU_TARBALL=...
 set -e
 
 BASE="${UU_MIRROR:-https://raw.githubusercontent.com/alexzhong233/luci-app-uugamebooster/master}"
 BASE="${BASE%/}"
 WORK=/tmp/uu-update.$$
+TRIES="${UU_RETRY:-3}"
 
 [ "$(id -u)" = "0" ] || { echo "要用 root 跑"; exit 1; }
 
@@ -25,6 +30,49 @@ command -v wget >/dev/null 2>&1 || die "没有 wget"
 
 mkdir -p "$WORK"
 trap 'rm -rf "$WORK"' EXIT
+
+# ---------------------------------------------------------------- 下载原语
+# OpenWrt 的 wget(uclient-fetch) 连续打多个 HTTPS 请求时偶发 TLS 握手中断，
+# 报 "SSL error: error:00000001:lib(0)::reason(1)"。同一个文件重试基本就过。
+fetch_one() {
+	_url="$1"
+	_out="$2"
+	_try=1
+	mkdir -p "$(dirname "$_out")"
+	while :; do
+		rm -f "$_out"
+		if wget -q -T 60 -O "$_out" "$_url" 2>/dev/null; then
+			if [ -s "$_out" ]; then
+				return 0
+			fi
+		fi
+		rm -f "$_out"
+		if [ "$_try" -ge "$TRIES" ]; then
+			return 1
+		fi
+		printf '      重试 %s/%s …\n' "$_try" "$TRIES"
+		sleep "$_try"
+		_try=$((_try + 1))
+	done
+}
+
+# 从 BASE 反推整包地址（github 归档走 codeload，比 raw 稳）
+tarball_url() {
+	case "$BASE" in
+		*raw.githubusercontent.com/*)
+			_rest="${BASE#*raw.githubusercontent.com/}"
+			_owner="${_rest%%/*}"
+			_rest="${_rest#*/}"
+			_repo="${_rest%%/*}"
+			_rest="${_rest#*/}"
+			_branch="${_rest%%/*}"
+			if [ -n "$_owner" ] && [ -n "$_repo" ] && [ -n "$_branch" ]; then
+				printf 'https://codeload.github.com/%s/%s/tar.gz/refs/heads/%s\n' \
+					"$_owner" "$_repo" "$_branch"
+			fi
+			;;
+	esac
+}
 
 # ---------------------------------------------------------------- 文件清单
 # 目标路径|仓库内相对路径|权限
@@ -48,25 +96,68 @@ FILES="
 /usr/lib/lua/luci/i18n/uugamebooster.zh-cn.lmo|dist/uugamebooster.zh-cn.lmo|644
 "
 
-# ---------------------------------------------------------------- 下载
-log "下载文件（$BASE）"
-FAILED=""
+# ---------------------------------------------------------------- 整包
+PKGROOT=""
+if [ -z "${UU_TARBALL+x}" ]; then
+	TB="$(tarball_url)"
+else
+	TB="$UU_TARBALL"
+fi
+
+if [ -n "$TB" ] && command -v tar >/dev/null 2>&1; then
+	log "整包下载（一次请求）"
+	echo "    $TB"
+	if fetch_one "$TB" "$WORK/pkg.tgz"; then
+		mkdir -p "$WORK/pkg"
+		if tar -xzf "$WORK/pkg.tgz" -C "$WORK/pkg" >/dev/null 2>&1; then
+			for _d in "$WORK/pkg"/*/; do
+				[ -d "${_d}luci-app-uugamebooster" ] || continue
+				PKGROOT="${_d%/}"
+				break
+			done
+		fi
+		if [ -n "$PKGROOT" ]; then
+			echo "    解包完成（$(wc -c < "$WORK/pkg.tgz" | tr -d ' ') 字节）"
+		else
+			echo "    整包解开后结构不对，改用逐个文件"
+			rm -rf "$WORK/pkg"
+		fi
+	else
+		echo "    整包没下来，改用逐个文件（每个文件重试 $TRIES 次）"
+	fi
+fi
+
+# ---------------------------------------------------------------- 准备文件
+log "准备文件"
 mkdir -p "$WORK/src"
 echo "$FILES" | while IFS='|' read -r DST SRC MODE; do
 	[ -n "$DST" ] || continue
 	OUT="$WORK/src/$(echo "$SRC" | tr '/' '_')"
-	url="$BASE/$SRC"
-	if wget -q -T 45 -O "$OUT" "$url" && [ -s "$OUT" ]; then
-		printf '    %-58s %8s 字节\n' "$SRC" "$(wc -c < "$OUT" | tr -d ' ')"
-	else
-		rm -f "$OUT"
-		printf '    下载失败: %s\n' "$url"
-		echo "$SRC" >> "$WORK/failed"
+	ok=0
+	if [ -n "$PKGROOT" ] && [ -f "$PKGROOT/$SRC" ]; then
+		if cp -f "$PKGROOT/$SRC" "$OUT" 2>/dev/null; then
+			ok=1
+		fi
 	fi
+	if [ "$ok" = "0" ]; then
+		if fetch_one "$BASE/$SRC" "$OUT"; then
+			ok=1
+		fi
+	fi
+	if [ "$ok" = "0" ]; then
+		rm -f "$OUT"
+		printf '    下载失败: %s\n' "$SRC"
+		echo "$SRC" >> "$WORK/failed"
+		continue
+	fi
+	printf '    %-58s %8s 字节\n' "$SRC" "$(wc -c < "$OUT" | tr -d ' ')"
 done
 
 if [ -f "$WORK/failed" ]; then
-	die "有文件没下下来（$(wc -l < "$WORK/failed" | tr -d ' ') 个），已中止，什么都没改"
+	die "有文件没下下来（$(wc -l < "$WORK/failed" | tr -d ' ') 个），已中止，什么都没改
+   再跑一次通常就过了；一直失败就换镜像：
+   UU_MIRROR=https://cdn.jsdelivr.net/gh/alexzhong233/luci-app-uugamebooster@master \\
+     wget -O - \$UU_MIRROR/tools/update-router.sh | sh"
 fi
 
 # ---------------------------------------------------------------- 安装
