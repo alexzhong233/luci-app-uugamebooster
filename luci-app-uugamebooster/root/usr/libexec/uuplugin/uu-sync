@@ -294,6 +294,13 @@ run_sync() {
 			fi
 		fi
 
+		# UU re-adds its CDN routes on every refresh, so trim once per pass.
+		# Only cooperative cares: in bypass mode the device is out of the
+		# proxy anyway, and its traffic riding UU's tunnel is the point.
+		if [ "$mode" = "cooperative" ]; then
+			trim_uu_routes
+		fi
+
 		nap "$INTERVAL"
 	done
 }

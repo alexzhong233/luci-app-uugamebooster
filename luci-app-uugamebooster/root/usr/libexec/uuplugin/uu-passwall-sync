@@ -197,5 +197,10 @@ trap 'exit 0' TERM INT
 log "PassWall coexistence: exempting $LANIP from UU's DNS redirect (lan=$LANIF)"
 while :; do
 	scan
+	# UU keeps a few public CDN ranges (Fastly, Cloudflare/Discord) in its game
+	# route tables and re-adds them on every refresh. Left there, a boosted
+	# device's Twitch/Discord TCP is routed into UU's game tunnel instead of
+	# PassWall's tproxy, which is a dead end for web traffic.
+	trim_uu_routes
 	nap "$(pws_interval)"
 done
