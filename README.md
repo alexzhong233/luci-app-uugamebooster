@@ -25,6 +25,7 @@ What this fork adds:
 - **Native x86_64**, plus big-endian MIPS. Upstream supports neither.
 - **PC and phone boosting**, not just consoles. Runs natively on ARM routers, emulated on x86_64.
 - **Coexistence with OpenClash, nikki, UA3F and HomeProxy**, from one engine: a proxy is a descriptor file, not another copy of the same daemon. See [Coexistence](docs/coexistence.md).
+- **Coexistence with PassWall**, off by default. Game traffic already routes into UU's tunnel on its own; what collides is DNS, and switching this on keeps a boosted device resolving through PassWall, at the cost of game names that may resolve outside UU's routes. See [docs/passwall.md](docs/passwall.md).
 - **As fast as UU's own PC client**, measured: 25 ms vs 25-27 ms on CS2 through Hong Kong.
 - **A device list**, so the UU app only sees the devices you pick.
 - **English and Chinese UI**, following LuCI's language setting.
@@ -96,7 +97,7 @@ make defconfig && make package/luci-app-uugamebooster/compile V=s
 
 ## Use
 
-1. Go to **Services → UU Game Booster**
+1. Go to **VPN → UU Game Booster**
 2. Under **General**, tick **Enable** and hit Save & Apply
 3. Wait for the status panel to say **Ready**. Before that the app can't find your router, even though the service is already running.
 4. Follow the **How to use** tab: install the app, bind the router, pick a device

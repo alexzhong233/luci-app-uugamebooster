@@ -43,5 +43,5 @@ sync_chains() {
 }
 
 sync_dest_match() {
-	echo "meta l4proto tcp ip saddr @$SET_SRC ip daddr @$SET_DST"
+	echo "meta l4proto tcp ip saddr . ip daddr @$SET_DST"
 }

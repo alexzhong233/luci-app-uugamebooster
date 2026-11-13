@@ -38,12 +38,18 @@
 # --------------
 # Keeps a RETURN in front of the DNAT for queries aimed at the router itself, so
 # a boosted device keeps resolving through PassWall; and removes the IPv6 DROP
-# rules. UU only checks that its DNAT rule was accepted, not that packets reach
-# it, so acceleration is untouched - measured on an IPQ60xx with the tunnel
-# carrying traffic while this was in place.
+# rules UU leaves behind after a boost. UU only checks that its DNAT rule was
+# accepted, not that packets reach it, so the boost stays up - measured on an
+# IPQ60xx with the tunnel carrying traffic while this was in place.
+#
+# Off by default: a game name resolved through PassWall can land outside UU's
+# routes and leave the tunnel, which is the reverse of what HomeProxy and nikki
+# do with DNS. It is for setups where PassWall's resolver chain matters more.
 #
 # Only the router's own address is exempted, not all of port 53: a query aimed
-# somewhere else still takes UU's redirect, exactly as before.
+# somewhere else still takes UU's redirect, exactly as before. Firmware without
+# iptables DNAT (dnat=nft in uu-detect) is not covered: the RETURN sits in
+# iptables while UU's redirect then lives in nftables.
 
 MODE="${1:-cooperative}"
 LOG_TAG="uu-passwall"
@@ -108,22 +114,33 @@ ensure_exempt() {
 	return 0
 }
 
-# Delete the IPv6 DNS DROP rules UU installs per boosted MAC. Matched on shape
-# rather than on a specific MAC: a device that has been unplugged and come back
-# with a new address would otherwise leave its old rule behind forever.
-purge_v6_drop() {
-	local chain="$1" nums n
-	nums="$($IP6T -t filter -S "$chain" 2>/dev/null |
-		awk '/^-A / {
-			n++
-			if ($0 ~ /--dport 53/ && $0 ~ /-j DROP/ && $0 ~ /--mac-source/)
-				print n
-		}' | sort -rn)"
-	[ -n "$nums" ] || return 0
-	for n in $nums; do
-		$IP6T -t filter -D "$chain" "$n" 2>/dev/null && \
-			log "removed IPv6 DNS block #$n from $chain"
+# MACs of the devices UU is boosting right now, lower case. Prints nothing and
+# fails if any of them cannot be resolved, so the caller can keep its hands off.
+boosted_macs() {
+	local ip mac
+	for ip in $(boosted_ips); do
+		mac="$(ip -4 neigh show "$ip" 2>/dev/null |
+			awk '{ for (i = 1; i < NF; i++) if ($i == "lladdr") print tolower($(i + 1)) }' | head -n1)"
+		[ -n "$mac" ] || return 1
+		echo "$mac"
 	done
+}
+
+# Delete the IPv6 DNS DROP rules UU leaves behind once a boost has ended. While
+# a device is boosted its DROP is what keeps it on IPv4 and in the tunnel, so
+# only MACs that are no longer boosted are touched, and each rule is deleted by
+# its own spec rather than by a position that may have moved.
+purge_v6_drop() {
+	local chain="$1" keep line mac
+	keep="$(boosted_macs)" || return 0
+	$IP6T -t filter -S "$chain" 2>/dev/null |
+		grep -- '--dport 53' | grep -- '--mac-source' | grep -- '-j DROP' |
+		while read -r line; do
+			mac="$(echo "$line" | sed -n 's/.*--mac-source \([0-9A-Fa-f:]*\).*/\1/p' | tr 'A-F' 'a-f')"
+			printf '%s\n' "$keep" | grep -qx "$mac" && continue
+			$IP6T -t filter $(echo "$line" | sed 's/^-A /-D /') 2>/dev/null &&
+				log "removed IPv6 DNS block left behind for $mac"
+		done
 	return 0
 }
 
@@ -138,26 +155,19 @@ cleanup() {
 }
 
 scan() {
-	local ip
+	local ip now
+	now="$(boosted_ips)"
+	for ip in $(cat "$STATE" 2>/dev/null); do
+		printf '%s\n' "$now" | grep -qx "$ip" || del_exempt "$ip"
+	done
 	: > "$STATE.tmp"
-	for ip in $(boosted_ips); do
+	for ip in $now; do
 		ensure_exempt "$ip" && echo "$ip" >> "$STATE.tmp"
 	done
 	mv -f "$STATE.tmp" "$STATE"
 	purge_v6_drop INPUT
 	purge_v6_drop FORWARD
 	return 0
-}
-
-# Independent of oc_interval: that one belongs to the OpenClash tab, and moving
-# one slider must not silently retime the other. Re-read every round so a Save
-# & Apply takes effect without restarting the service.
-pws_interval() {
-	local n
-	n="$(uci -q get uuplugin.@uuplugin[0].passwall_interval 2>/dev/null)"
-	case "$n" in ''|*[!0-9]*) n=5 ;; esac
-	[ "$n" -ge 1 ] && [ "$n" -le 60 ] || n=5
-	echo "$n"
 }
 
 # ---------------------------------------------------------------- entry point
@@ -189,18 +199,12 @@ if ! $IPT -t nat -S PREROUTING >/dev/null 2>&1; then
 	fi
 fi
 
-# A restart must not pull the exemption out from under the device it protects,
-# so nothing is cleaned up on TERM. Only an explicit "cleanup" (the service
-# being switched off) removes the rules.
-trap 'exit 0' TERM INT
+# procd stops this with TERM both when the service stops and when PassWall is
+# switched off in LuCI, and only the stop path runs "cleanup" separately.
+trap 'cleanup; exit 0' TERM INT
 
 log "PassWall coexistence: exempting $LANIP from UU's DNS redirect (lan=$LANIF)"
 while :; do
 	scan
-	# UU keeps a few public CDN ranges (Fastly, Cloudflare/Discord) in its game
-	# route tables and re-adds them on every refresh. Left there, a boosted
-	# device's Twitch/Discord TCP is routed into UU's game tunnel instead of
-	# PassWall's tproxy, which is a dead end for web traffic.
-	trim_uu_routes
-	nap "$(pws_interval)"
+	nap "$INTERVAL"
 done

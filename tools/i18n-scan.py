@@ -14,7 +14,7 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, "luci-app-uugamebooster", "luasrc")
 OUT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(
-    ROOT, "po", "templates", "uugamebooster.pot")
+    ROOT, "luci-app-uugamebooster", "po", "templates", "uugamebooster.pot")
 
 # translate("a" .. "b") - the argument is often concatenated across lines, so the
 # whole call is matched first and the pieces joined afterwards.

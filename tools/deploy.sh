@@ -49,6 +49,8 @@ done
 say "staging files"
 mkdir -p "$TMP/stage"
 cp -a "$SRC/root/." "$TMP/stage/"
+# The router's settings are the user's; a package upgrade keeps them too.
+rm -f "$TMP/stage/etc/config/uuplugin"
 mkdir -p "$TMP/stage/usr/lib/lua/luci/controller" \
          "$TMP/stage/usr/lib/lua/luci/model/cbi" \
          "$TMP/stage/usr/lib/lua/luci/view/uuplugin" \
@@ -73,7 +75,8 @@ fi
 
 # ------------------------------------------------------------------- install
 say "uploading to $HOST"
-scp -q -r "$TMP/stage/." "$HOST:/"
+# -O: OpenWrt ships no sftp-server, which newer scp needs by default.
+scp -O -q -r "$TMP/stage/." "$HOST:/"
 
 say "setting permissions"
 ssh "$HOST" '
@@ -81,7 +84,6 @@ ssh "$HOST" '
 	          /usr/libexec/uuplugin/uu-sync \
 	          /usr/libexec/uuplugin/uu-* \
 	          /usr/libexec/uuplugin/uu-sync.d/*.sh 2>/dev/null
-	chmod 644 /etc/config/uuplugin
 	# A stale index cache would serve the old menu and the old form.
 	rm -f /tmp/luci-indexcache* /tmp/luci-modulecache/* 2>/dev/null
 	true
@@ -107,7 +109,17 @@ ssh "$HOST" '
 	exit $fail
 '
 
-say "restarting"
-ssh "$HOST" '/etc/init.d/uuplugin restart >/dev/null 2>&1; sleep 3; /etc/init.d/uuplugin status 2>&1 | head -2'
+# Never a full restart: that re-registers with NetEase. reload only restarts
+# instances whose command changed, so the sync daemons are also sent TERM and
+# procd respawns them on the new code; the UU core keeps running.
+say "reloading"
+ssh "$HOST" '
+	/etc/init.d/uuplugin reload >/dev/null 2>&1
+	for i in $(ubus call service list "{\"name\":\"uuplugin\"}" |
+	           jsonfilter -e "@.uuplugin.instances" | grep -o "\"uu_sync_[a-z0-9]*\"" | tr -d "\""); do
+		p=$(ubus call service list "{\"name\":\"uuplugin\"}" | jsonfilter -e "@.uuplugin.instances.$i.pid")
+		[ -n "$p" ] && kill "$p"
+	done
+	sleep 3; /etc/init.d/uuplugin status 2>&1 | head -2'
 
 say "done"

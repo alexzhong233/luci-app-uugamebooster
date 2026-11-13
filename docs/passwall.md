@@ -66,14 +66,16 @@ that uses the system resolver fails.
 ## What the plugin does about it
 
 `uu-passwall-sync`, started by `/etc/init.d/uuplugin` when `passwall_mode` is
-`cooperative` (the default), and only when `/etc/config/passwall` exists:
+`cooperative`, and only when `/etc/config/passwall` exists. It is off by
+default, because of the trade-off under *What it does not do*:
 
 | Step | Effect |
 |---|---|
 | insert `-t nat PREROUTING` position 1: `-i <lan> -s <ip> -d <lan ip> -p udp --dport 53 -j RETURN` | the device's DNS goes to PassWall's resolver again |
-| delete `ip6tables -t filter` rules matching `--dport 53 … --mac-source … -j DROP` in `INPUT` and `FORWARD` | the device's IPv6 resolution works again, and stays working after the boost stops |
-| re-check every `passwall_interval` seconds (default 5, independent of the OpenClash tab's `oc_interval`) | UU inserts its rule at position 1 on every boost, and a `fw4` reload can flush the table; both are corrected within one interval |
-| `cleanup` when the service is switched off | our rules are ours, so they go |
+| delete `ip6tables -t filter` rules matching `--dport 53 … --mac-source <mac> … -j DROP` in `INPUT` and `FORWARD`, by rule spec, for MACs that are no longer boosted | IPv6 resolution comes back once the boost ends; during a boost the DROP stays, since it is what keeps the device on IPv4 and in the tunnel |
+| re-check every `oc_interval` seconds (the Coexistence tab's re-check interval, default 5) | UU inserts its rule at position 1 on every boost, and a `fw4` reload can flush the table; both are corrected within one interval |
+| drop the `RETURN` of a device that is no longer boosted | nothing is left behind for it |
+| `cleanup` whenever the service stops or PassWall is switched off | our rules are ours, so they go |
 
 Only the **router's own address** is exempted, not the whole of port 53. A query
 aimed anywhere else still takes UU's redirect, exactly as before.
@@ -87,8 +89,8 @@ PassWall.
 ## What it does not do
 
 - **It does not split traffic.** Nothing needs splitting; see the top of this
-  page. If you came here expecting `uu-openclash-sync`'s two nftables sets, that
-  is because OpenClash hooks netfilter and PassWall does not.
+  page. If you came here expecting the engine's two nftables sets, that is
+  because OpenClash hooks netfilter and PassWall does not.
 - **It does not touch the game's own resolution.** If a game's server name
   resolves, through PassWall, to an address outside UU's prefix table, that
   connection leaves the tunnel and is not accelerated. Check one with
@@ -98,14 +100,17 @@ PassWall.
   its own resolver configured bypasses PassWall entirely, and the redirect UU
   installs is the only thing that would have caught it. Turn on PassWall's own
   DNS redirect if that matters to you.
+- **It does not cover firmware without iptables DNAT.** There UU's redirect is
+  done in nftables (`dnat=nft` in `uu-detect`), out of reach of an iptables
+  `RETURN`.
 
-## Turning it off
+## Turning it on
 
-LuCI → **VPN → UU Game Booster → PassWall → Coexistence → Leave PassWall alone**,
+LuCI → **Services → UU Game Booster → Coexistence → PassWall → Split the traffic**,
 or:
 
 ```sh
-uci set uuplugin.@uuplugin[0].passwall_mode='off'
+uci set uuplugin.@uuplugin[0].passwall_mode='cooperative'
 uci commit uuplugin
 /etc/init.d/uuplugin reload
 ```

@@ -8,6 +8,20 @@ fs = require("nixio.fs")
 -- from the scripts next.
 ctl = require("luci.controller.uuplugin")
 
+-- A proxy counts as installed when its config exists, the same test the init
+-- script makes before starting its backend. "all" lists every supported one.
+local show_all = require("luci.model.uci").cursor():get_first("uuplugin", "uuplugin", "coex_tabs") == "all"
+local proxies = {}
+for _, b in ipairs(ctl.backends()) do
+	if show_all or (b.config ~= "" and fs.access(b.config)) then
+		proxies[#proxies + 1] = b
+	end
+end
+-- PassWall has no engine descriptor (it works in iptables), but sits here too.
+if show_all or fs.access("/etc/config/passwall") then
+	proxies[#proxies + 1] = { id = "passwall", label = "PassWall", config = "/etc/config/passwall" }
+end
+
 mp = Map("uuplugin")
 mp.title = translate("UU Game Booster")
 mp.description = translate(
@@ -26,8 +40,7 @@ s.addremove = false
 
 s:tab("general", translate("General"))
 s:tab("build",   translate("What to boost"))
-s:tab("coexist", translate("Coexistence"))
-s:tab("passwall", translate("PassWall"))
+if #proxies > 0 then s:tab("coexist", translate("Coexistence")) end
 s:tab("devices", translate("Device visibility"))
 s:tab("howto",   translate("How to use"))
 
@@ -48,6 +61,12 @@ o = s:taboption("general", Flag, "addfw",
 		"forward into it. Required on OpenWrt 22.03 and newer, where forwarding " ..
 		"is rejected by default - without it nothing can be boosted."))
 o.default = 1
+
+o = s:taboption("general", ListValue, "coex_tabs", translate("Proxies on the Coexistence tab"),
+	translate("Takes effect after Save &amp; Apply."))
+o:value("auto", translate("Only those installed on this router"))
+o:value("all", translate("Every supported proxy"))
+o.default = "auto"
 
 -- ------------------------------------------------------------ plugin build
 
@@ -99,6 +118,7 @@ o:depends("arch", "auto")
 -- description of every one of them: with four installed it was the same four
 -- paragraphs, four times, and the answer took scrolling to find.
 
+if #proxies > 0 then
 o = s:taboption("coexist", DummyValue, "_coexist_why",
 	translate("How coexistence works"))
 o.description = translate(
@@ -134,14 +154,23 @@ local NOTE = {
 	ua3f = translate(
 		"Rewrites the User-Agent of LAN traffic by diverting TCP to itself. Only " ..
 		"TCP is exempted, because that is all UA3F touches."),
+	passwall = translate(
+		"Game traffic reaches UU's tunnel on its own; only DNS collides. Keeping " ..
+		"a boosted device on PassWall's resolver can hand the game addresses UU " ..
+		"does not route, so this is off unless PassWall's DNS matters more."),
 }
 
-local installed = 0
-for _, b in ipairs(ctl.backends()) do
-	if fs.access(b.config) then
-		installed = installed + 1
+local has_openclash = false
+for _, b in ipairs(proxies) do
+	if b.id == "openclash" then has_openclash = true end
 
-		o = s:taboption("coexist", ListValue, b.id .. "_mode", b.label)
+	o = s:taboption("coexist", ListValue, b.id .. "_mode", b.label)
+	if b.id == "passwall" then
+		-- Not a split: the only thing it changes is where DNS goes.
+		o:value("off", translate("Leave it alone (recommended)"))
+		o:value("cooperative", translate("Keep boosted devices on PassWall's DNS"))
+		o.default = "off"
+	else
 		o:value("cooperative", translate("Split the traffic (recommended)"))
 		-- UA3F is not a proxy: it rewrites User-Agents and hands the
 		-- connection back to the router. "Off the proxy" would be the wrong
@@ -151,23 +180,14 @@ for _, b in ipairs(ctl.backends()) do
 		end
 		o:value("off", translate("Leave it alone"))
 		o.default = "cooperative"
-		o.description = NOTE[b.id]
 	end
-end
-
-if installed == 0 then
-	o = s:taboption("coexist", DummyValue, "_none",
-		translate("No proxy installed"))
-	o.description = translate(
-		"There is nothing to coexist with: no OpenClash, Nikki, HomeProxy or " ..
-		"UA3F was found on this router. Install one and its setting appears " ..
-		"here.")
+	o.description = NOTE[b.id]
 end
 
 -- OpenClash keeps a list of devices that skip the proxy completely. A boosted
 -- device on that list skips OpenClash for everything, so splitting it is a
 -- no-op until it is taken off.
-if fs.access("/etc/config/openclash") then
+if has_openclash then
 	o = s:taboption("coexist", Flag, "oc_manage_lan_ac",
 		translate("OpenClash: move boosted devices off its bypass list"),
 		translate("OpenClash keeps a list of devices that skip the proxy " ..
@@ -195,34 +215,7 @@ o = s:taboption("coexist", Value, "oc_min_prefix",
 		"pulling the whole internet out of it."))
 o.datatype = "range(1,32)"
 o.default = "8"
-
--- ----------------------------------------------------------------- PassWall
-
-o = s:taboption("passwall", ListValue, "passwall_mode", translate("Coexistence"))
-o:value("cooperative", translate("Keep PassWall's DNS (recommended)"))
-o:value("off", translate("Leave PassWall alone"))
-o.default = "cooperative"
-
-o = s:taboption("passwall", Value, "passwall_interval",
-	translate("How often to re-check UU's DNS redirect"),
-	translate("In seconds. UU re-inserts its redirect at the top of the chain every time a boost starts, so this decides how quickly it gets pushed back."))
-o.datatype = "range(1,60)"
-o.default = "5"
-o:depends("passwall_mode", "cooperative")
-
--- Split into short sentences: a single 800-character msgid misses its catalogue
--- entry over one stray space, and is miserable to translate. One translate()
--- per sentence keeps each msgid checkable against the .po.
-o.description =
-	translate("PassWall splits traffic at the routing layer and UU at its own policy rule, so a boosted device's game traffic already goes into UU's tunnel and everything else into the proxy.") ..
-	"<br /><br />" ..
-	translate("What collides is DNS: UU sends each boosted device's UDP/53 into the game tunnel and blocks its IPv6 DNS outright, which bypasses PassWall's resolver chain. UU never removes the IPv6 block, so that device cannot resolve over IPv6 until the next reboot.") ..
-	"<br /><br />" ..
-	translate("<strong>Keep PassWall's DNS</strong> puts the router's own address back in front of that redirect and removes the IPv6 block. UU only checks that its rule was accepted, not that packets reach it, so acceleration is unaffected.") ..
-	"<br />" ..
-	translate("<strong>Leave PassWall alone</strong> changes nothing.") ..
-	"<br />" ..
-	translate("Nothing happens unless PassWall is installed.")
+end
 
 -- ------------------------------------------------------------ device list
 

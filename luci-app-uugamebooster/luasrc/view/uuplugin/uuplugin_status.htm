@@ -78,30 +78,19 @@ function uuRender(d) {
 		function row(k, v) { rows.push([k, v]); }
 
 		// "Running" alone is misleading: after every start the plugin has to
-		// register with NetEase before the phone app can find the router.
+		// reach NetEase before the phone app can find the router.
 		var svc;
 		if (d.phase == 'ready')
 			svc = '<span class="uu-dot ok"></span><span class="t-ok"><%:Ready%></span>';
 		else if (d.phase == 'starting')
 			svc = '<span class="uu-dot warn"></span><span class="t-warn"><%:Starting%>&hellip;</span>' +
 			      ' <span class="uu-muted">&ndash; <%:no connection to NetEase yet%></span>';
-		else if (d.phase == 'registering')
-			svc = '<span class="uu-dot warn"></span><span class="t-warn"><%:Registering%>&hellip;</span>' +
-			      ' <span class="uu-muted">&ndash; <%:the app cannot find the router yet%></span>';
 		else
 			svc = '<span class="uu-dot bad"></span><span class="t-bad"><%:Not running%></span>';
 		row('<%:Service%>', svc);
 
-		// Registration only matters while coming up - once Ready it restates
-		// what the service line already said. The control server address is
-		// worth keeping either way: it is the one piece of live information
-		// here that says which NetEase endpoint the tunnel is actually talking
-		// to, and it changes between sessions.
-		if (d.running && d.phase != 'ready') {
-			row('<%:Registration%>', d.activated
-				? '<code>' + d.activated + '</code>'
-				: '<span class="uu-muted"><%:not registered yet%></span>');
-		}
+		// The control server address says which NetEase endpoint the tunnel is
+		// talking to, and it changes between sessions.
 		if (d.running) {
 			row('<%:NetEase link%>', d.cloud
 				? '<span class="uu-dot ok"></span><code>' + d.cloud + '</code>'
@@ -143,8 +132,8 @@ function uuRender(d) {
 		// pushed everything else off the panel once four were installed, and
 		// the only things worth scanning are "is it on" and "how many
 		// destinations are currently kept out of it".
-		var chips = [];
 		if (d.sync && d.sync.length) {
+			var chips = [];
 			d.sync.forEach(function(s) {
 				if (s.mode == 'off') {
 					chips.push('<span class="uu-chip">' +
@@ -183,30 +172,8 @@ function uuRender(d) {
 
 				chips.push(chip + '</span>');
 			});
-		}
-
-		// PassWall keeps its own daemon: it puts the router's resolver back in
-		// front of UU's DNS redirect instead of exempting traffic from a proxy,
-		// so it reports through its own fields rather than d.sync.
-		if (d.passwall_installed) {
-			if (d.passwall_mode == 'off') {
-				chips.push('<span class="uu-chip">' +
-					'<span class="uu-dot"></span>' +
-					'<span class="uu-muted"><%:PassWall%> <%:left alone%></span></span>');
-			} else {
-				chips.push('<span class="uu-chip">' +
-					'<span class="uu-dot ok"></span>' +
-					'<span class="t-ok"><%:PassWall%></span>' +
-					((d.passwall_exempted > 0)
-						? ' <span class="uu-num">' + d.passwall_exempted + '</span>' +
-						  ' <span class="uu-muted"><%:DNS kept%></span>'
-						: ' <span class="uu-muted"><%:nothing - no device is being boosted%></span>') +
-					'</span>');
-			}
-		}
-
-		if (chips.length)
 			row('<%:Coexistence%>', chips.join(' '));
+		}
 
 		var h = '';
 		for (var i = 0; i < rows.length; i++)

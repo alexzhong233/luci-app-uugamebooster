@@ -25,7 +25,7 @@ sync_chains() {
 # destination-prefix route. Assuming the wide range pushed a boosted PC's UDP
 # out of the proxy while UU was not accelerating any of it.
 sync_extra_rules() {
-	local ips="$1" udp mark d p
+	local ips="$1" udp mark d p m
 
 	udp="$UU_UDP_PORTS"
 	mark="$UU_MARK_CFG"
@@ -38,7 +38,14 @@ sync_extra_rules() {
 				esac
 			done
 		fi
-		[ -n "$mark" ] || mark="$(uu_marked_fwmark "$d")"
+		# Each boosted device gets its own mark (0x163, 0x164, ...).
+		if [ -z "$UU_MARK_CFG" ]; then
+			m="$(uu_marked_fwmark "$d")"
+			case ",$mark," in
+				*",$m,"*) ;;
+				*) [ -n "$m" ] && mark="${mark:+$mark,}$m" ;;
+			esac
+		fi
 	done
 
 	# Exempt exactly the UDP slice UU marks, and nothing when it marks none: a
@@ -50,7 +57,7 @@ sync_extra_rules() {
 	# UU's prerouting hook runs before this chain, so by the time traffic gets
 	# here UU's own mark already identifies it exactly, whatever the ports.
 	[ -n "$mark" ] &&
-		echo "${TAG_PREFIX}mark|ip saddr @$SET_SRC meta mark $mark"
+		echo "${TAG_PREFIX}mark|ip saddr @$SET_SRC meta mark { $mark }"
 	return 0
 }
 

@@ -82,7 +82,7 @@ ua3f=""
 nft list table inet UA3F >/dev/null 2>&1 && ua3f="1"
 
 # "tun" when sing-box's own table is up, the only HomeProxy mode
-# uu-homeproxy-sync handles; its other modes hook fw4 and stay "1".
+# the homeproxy backend handles; its other modes hook fw4 and stay "1".
 homeproxy=""
 ubus call service list '{"name":"homeproxy"}' 2>/dev/null | grep -q '"running": true' && homeproxy="1"
 nft list table inet sing-box >/dev/null 2>&1 && homeproxy="tun"
@@ -127,7 +127,8 @@ boosted="$( {
 # Report the two states separately so the UI can say which one it is.
 #
 # cloud:     an established connection to UU's control servers
-# activated: the plugin has written its registration record
+# activated: UU's link snapshot (wan_if, MTUs), written once at first bind and
+#            lost on reboot; not a registration record, so the UI ignores it
 cloud=""
 if [ -n "$ours" ]; then
 	cloud=$(netstat -np 2>/dev/null |

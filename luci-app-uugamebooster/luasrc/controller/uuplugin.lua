@@ -83,35 +83,17 @@ function act_status()
 	e.boosted = det:match("boosted=([^\r\n]*)")
 	if e.boosted == "" then e.boosted = nil end
 
-	-- Registered with NetEase, and talking to their control servers. Until both
-	-- are true the phone app cannot find the router, even though the process is
-	-- up - so the UI distinguishes "running" from "ready".
+	-- Until the control connection is up the phone app cannot find the router,
+	-- even though the process is running. Binding itself lives in NetEase's
+	-- cloud and nothing on the router records it, so the app is the place to
+	-- check that.
 	e.cloud = det:match("cloud=([^\r\n]*)")
 	if e.cloud == "" then e.cloud = nil end
-	e.activated = det:match("activated=([^\r\n]*)")
-	if e.activated == "" then e.activated = nil end
-	-- The vendor build writes activate_status once, at binding, and never again;
-	-- it keeps the rest of its state in a .uu.db under the same data directory.
-	-- Both live in tmpfs, so after the first reboot that marker is gone for good
-	-- and the file is never recreated - demanding it therefore left every OEM
-	-- install stuck on "registering" while the router was bound and boosting
-	-- fine. For OEM builds the control connection is all we can honestly
-	-- observe, so that is what "ready" is based on; the template says the rest
-	-- is managed from the app.
-	e.oem = (e.build or ""):match("^oem") ~= nil
-
-	-- Three distinct phases after a start, which look identical from the
-	-- outside but mean different things to someone waiting to bind:
-	--   starting     process up, no control connection yet
-	--   registering  talking to NetEase, no registration record yet
-	--   ready        bindable in the app
-	e.ready = (e.running and e.cloud ~= nil and (e.activated ~= nil or e.oem))
+	e.ready = (e.running and e.cloud ~= nil)
 	if not e.running then
 		e.phase = "stopped"
 	elseif e.cloud == nil then
 		e.phase = "starting"
-	elseif e.activated == nil and not e.oem then
-		e.phase = "registering"
 	else
 		e.phase = "ready"
 	end
@@ -153,12 +135,17 @@ function act_status()
 		end
 	end
 
-	-- PassWall is not a proxy in this sense: its daemon puts the router's own
-	-- resolver back in front of UU's DNS redirect instead of exempting traffic
-	-- from a proxy's chains, so it keeps its own state file and its own entry.
-	e.passwall_installed = fs.access("/etc/config/passwall")
-	e.passwall_mode = uci:get_first("uuplugin", "uuplugin", "passwall_mode") or "cooperative"
-	e.passwall_exempted = lines("/var/run/uu-passwall.state")
+	-- PassWall is not an engine backend (it works in iptables), but the panel
+	-- shows it alongside them. Its count is boosted devices, not prefixes.
+	if fs.access("/etc/config/passwall") then
+		e.sync[#e.sync + 1] = {
+			id = "passwall",
+			label = "PassWall",
+			running = true,
+			mode = uci:get_first("uuplugin", "uuplugin", "passwall_mode") or "off",
+			exempted = lines("/var/run/uu-passwall.state"),
+		}
+	end
 
 	-- UU creates one TUN per boosted device (tun163, tun164, ...), so list them all
 	local tun = sys.exec("ip -o link show 2>/dev/null | awk -F': ' '{print $2}' | cut -d'@' -f1 | grep -E '^tun' | grep -v '^utun' | tr '\\n' ' '")
