@@ -136,9 +136,17 @@ if [ -n "$ours" ]; then
 		grep -v '^127\.' | head -n1)
 fi
 
+# Read it from $RUN_DIR, where this plugin runs the core from, and fall back to
+# /tmp/uu, which is NetEase's own installer directory. The path was hardcoded to
+# the latter, so this came back empty on every install of ours - which is part
+# of why the file kept being blamed for a page that never left "registering".
 activated=""
-[ -s /tmp/uu/activate_status ] && \
-	activated=$(head -n1 /tmp/uu/activate_status 2>/dev/null)
+for f in "$RUN_DIR/activate_status" /tmp/uu/activate_status; do
+	if [ -s "$f" ]; then
+		activated=$(head -n1 "$f" 2>/dev/null)
+		break
+	fi
+done
 
 # One device list, two possible meanings, so whichever is shorter to maintain
 # can be used: blacklist ignores the listed devices, whitelist considers only

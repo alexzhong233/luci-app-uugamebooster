@@ -37,6 +37,31 @@ resolved by guessing.
 `tools/update-router.sh`（在路由器上执行：整包下载 + 单文件重试）和
 `tools/update.sh`（从本机推到路由器，保住已有 UCI 配置）。上游没有这两个。
 
+## 5. activate_status 的读取路径
+
+`uu-detect` 里这个文件原来固定读 `/tmp/uu/activate_status` —— 那是**网易官方
+一键脚本**的目录，本插件在 `takeover` 时还会把它删掉，自己也从不往那里写。
+本插件跑核心的目录是 `$RUN_DIR`（`/var/tmp/uu`，OpenWrt 上 `/var` 链到 `/tmp`，
+所以实际是 `/tmp/tmp/uu`），两处不是一回事。结果是 `activated=` 在我们自己的
+安装上**永远是空的**，一度被当成「核心没注册」的证据。
+
+现在先读 `$RUN_DIR`，再回落到 `/tmp/uu`（兼容仍留着官方脚本的机器）。这只是
+诊断输出，状态页不拿它做判断（见下条）。
+
+`tools/check-status-phase.py` 可以离线把这个结论跑出来：喂一份 `uu-detect` 的
+输出（或直接用内置的「厂商版·模拟运行」样本），分别按现在的判据和 2.4 的判据
+算一遍 phase，能看到同一个「activate_status 为空、cloud 已连」的样本，现在给
+`ready`，旧逻辑给 `starting` —— 也就是那个「永远卡在正在注册」的 bug。
+
+## 状态页的判据：别再往回改
+
+2.5 起 phase 只看两件事：进程在跑（`ours=` 有值）、到网易控制服务器的连接
+已建立（`cloud=` 有值）。`activate_status` 是**首次绑定时写一次的链路快照**
+（wan_if / MTU），OEM 版重启后干脆永远不写 —— 它从来不是注册凭据。把它重新
+加回判据，OEM 设备的状态页就又会永久停在「正在注册」，哪怕 App 里路由器在、
+加速也正常。
+
+
 ## PassWall 共存：已经还给上游
 
 2026-11 之前这个 fork 自带一套 `uu-passwall-sync`（把发往路由器本机的
