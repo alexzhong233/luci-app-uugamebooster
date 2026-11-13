@@ -33,3 +33,9 @@ config uuplugin
 	# all | blacklist | whitelist
 	option device_mode 'all'
 	# match devices by MAC as well as IP
+
+	# 测试分支（test/repro-activate-status）专有，正常安装恒为 0。
+	# 置 1 时状态页改按 2.4 的判据算 —— 还要求 activate_status 非空，
+	# 于是 OEM 版会重新显示「注册中」，用来复现那个 bug。
+	# 开关：uu-trace strict on | off
+	option repro_strict_phase '0'

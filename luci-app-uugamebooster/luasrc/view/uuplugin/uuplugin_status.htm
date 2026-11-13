@@ -85,9 +85,22 @@ function uuRender(d) {
 		else if (d.phase == 'starting')
 			svc = '<span class="uu-dot warn"></span><span class="t-warn"><%:Starting%>&hellip;</span>' +
 			      ' <span class="uu-muted">&ndash; <%:no connection to NetEase yet%></span>';
+		else if (d.phase == 'registering')
+			// 只在这个测试分支里出现：repro_strict_phase=1 时按 2.4 的判据算，
+			// 也就是「缺 activate_status 就永远停在注册中」的原始表现。
+			svc = '<span class="uu-dot warn"></span><span class="t-warn">Registering&hellip;</span>' +
+			      ' <span class="uu-muted">&ndash; 复现用：2.4 判据要求 activate_status 非空</span>';
 		else
 			svc = '<span class="uu-dot bad"></span><span class="t-bad"><%:Not running%></span>';
 		row('<%:Service%>', svc);
+
+		// 测试分支专有：开关打开时把原始值摆出来，省得再去命令行看。
+		if (d.repro) {
+			row('复现开关', '<span class="t-warn">已按 2.4 判据</span> ' +
+				'<span class="uu-muted">activate_status = ' +
+				(d.activated ? String(d.activated).replace(/[<>&]/g, '') : '(空)') +
+				' &middot; 关掉：uu-trace strict off</span>');
+		}
 
 		// The control server address says which NetEase endpoint the tunnel is
 		// talking to, and it changes between sessions.

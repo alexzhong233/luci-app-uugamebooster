@@ -1,0 +1,196 @@
+#!/bin/sh
+# uu-trace - 找出 UU 核心到底在哪儿生成文件，并且把「永远卡在注册中」的
+# bug 按需复现出来。
+#
+#   uu-trace                快照：进程、cwd、打开的文件、候选目录、挂载
+#   uu-trace watch [秒]      打标记 → 等（这期间去 App 里点一次加速）→
+#                            列出这段时间新建/改动过的所有文件
+#   uu-trace restart [秒]    同上，但用重启服务代替「等一次加速」
+#   uu-trace strict on|off   打开/关闭 2.4 的判据（页面重新显示「注册中」，
+#                            即使控制连接已经建立）
+#
+# 报告写到 /root/uu-trace-<时间>.txt（overlay，重启还在），屏幕上同时能看到。
+# 这里**不创建**任何让 UU 去找的目录 —— 目的就是看它自己会做什么。
+set -u
+
+DETECT=/usr/libexec/uuplugin/uu-detect
+RUN_DIR=/var/tmp/uu
+# /root 在 overlay 上，重启还在；没有这个目录（或者只读）就退到 /tmp
+OUT_DIR=/root
+{ [ -d "$OUT_DIR" ] && [ -w "$OUT_DIR" ]; } 2>/dev/null || OUT_DIR=/tmp
+MARK=/tmp/.uu-trace-marker
+
+TS=$(date '+%Y%m%d-%H%M%S')
+OUT="$OUT_DIR/uu-trace-$TS.txt"
+
+sec() { printf '\n===== %s =====\n' "$*"; }
+note() { printf '%s\n' "$*"; }
+
+pid_of() {
+	[ -x "$DETECT" ] || return 0
+	"$DETECT" 2>/dev/null | sed -n 's/^ours=//p' | head -n1
+}
+
+mtime() {
+	stat -c %y "$1" 2>/dev/null || date -r "$1" '+%Y-%m-%d %H:%M:%S' 2>/dev/null
+}
+
+fsize() {
+	stat -c %s "$1" 2>/dev/null || echo '?'
+}
+
+# ---------------------------------------------------------------- 快照
+snapshot() {
+	sec "time"
+	date
+	uname -a
+
+	sec "uu-detect"
+	if [ -x "$DETECT" ]; then
+		"$DETECT" 2>&1
+	else
+		note "$DETECT 不存在（插件没装全？）"
+	fi
+
+	PID=$(pid_of)
+	sec "process"
+	note "pid=$PID"
+	if [ -n "$PID" ] && [ -d "/proc/$PID" ]; then
+		note "exe:   $(readlink "/proc/$PID/exe" 2>/dev/null)"
+		note "cwd:   $(readlink "/proc/$PID/cwd" 2>/dev/null)"
+		# root / 挂载命名空间一起看：启动时可能套了 unshare -m
+		note "root:  $(readlink "/proc/$PID/root" 2>/dev/null)"
+		note "ns:    $(readlink "/proc/$PID/ns/mnt" 2>/dev/null)"
+
+		note ""
+		note "-- 打开的文件：它开着哪个库，就是在写哪个"
+		ls -l "/proc/$PID/fd" 2>&1
+
+		note ""
+		note "-- 映射进来的文件"
+		awk '{print $6}' "/proc/$PID/maps" 2>/dev/null | grep '^/' | sort -u
+	else
+		note "进程没在跑，先 /etc/init.d/uuplugin start"
+	fi
+
+	sec "运行目录（readlink -f 才是真实位置）"
+	for d in "$RUN_DIR" /tmp/uu /opt/uu-oem /etc/uuplugin /etc/uuplugin/.state; do
+		note ""
+		note "-- $d  ->  $(readlink -f "$d" 2>/dev/null || echo '(不存在)')"
+		ls -la "$d" 2>&1 | head -n 40
+	done
+
+	sec "系统里像 UU 数据库的文件"
+	for r in / /tmp /opt; do
+		find "$r" -xdev \
+			\( -name '.uu*' -o -name 'uu*.db' -o -name '*uuplugin*.db' \
+			   -o -name 'activate_status' -o -name 'uu.conf' \) \
+			2>/dev/null
+	done | sort -u | head -n 60
+
+	sec "挂载（哪些分区是持久的）"
+	mount 2>/dev/null | grep -E ' / | /tmp | /overlay | /mnt' 
+
+	sec "服务与开机链接"
+	note "init.d: $([ -x /etc/init.d/uuplugin ] && echo yes || echo no)"
+	note "rc.d:   $(ls /etc/rc.d/ 2>/dev/null | grep -i uu | tr '\n' ' ')"
+	note "uci:    enabled=$(uci -q get uuplugin.@uuplugin[0].enabled) arch=$(uci -q get uuplugin.@uuplugin[0].arch) repro_strict_phase=$(uci -q get uuplugin.@uuplugin[0].repro_strict_phase)"
+}
+
+# marker 之后被创建或改动的文件。分几个根是有原因的：
+#   /         overlay，-xdev 会跳过 /tmp 和 /overlay
+#   /tmp      tmpfs（/var 是它的一部分），核心的活跃数据库多半在这儿
+#   /overlay  单独挂载，写进 flash 的东西在这儿能看到影子
+diff_since_marker() {
+	sec "自 $MARK 之后新建 / 改动的文件"
+	for r in / /tmp /overlay; do
+		[ -d "$r" ] || continue
+		find "$r" -xdev -newer "$MARK" \
+			! -path '/tmp/uu-trace*' \
+			! -path '/root/uu-trace*' \
+			! -path '/overlay/upper/root/uu-trace*' \
+			! -path '/tmp/.uci*' \
+			! -path '/tmp/luci-*' \
+			! -path '/tmp/resolv.conf*' \
+			2>/dev/null
+	done | sort -u | while IFS= read -r f; do
+		printf '%10s  %s  %s\n' "$(fsize "$f")" "$(mtime "$f")" "$f"
+	done
+	note ""
+	note "如果这里是空的，就是这段时间它什么都没写 —— 换个时机再抓，"
+	note "比如刚绑定完、或者正在加速的那一刻。"
+}
+
+# ---------------------------------------------------------------- 主流程
+run_snapshot() {
+	snapshot
+}
+
+run_watch() {
+	wait_s="${1:-60}"
+	snapshot
+	echo
+	echo ">>> 现在去 App 里点一次加速（或随便开个游戏），有 ${wait_s} 秒。"
+	touch "$MARK"
+	sleep "$wait_s"
+	diff_since_marker
+}
+
+run_restart() {
+	wait_s="${1:-20}"
+	echo ">>> 重启服务，等 ${wait_s} 秒后开始对比。"
+	touch "$MARK"
+	/etc/init.d/uuplugin restart >/dev/null 2>&1
+	sleep "$wait_s"
+	diff_since_marker
+	snapshot
+}
+
+run_strict() {
+	case "${1:-}" in
+	on)
+		uci set uuplugin.@uuplugin[0].repro_strict_phase='1'
+		uci commit uuplugin
+		note "已打开：状态页按 2.4 的判据算，缺 activate_status 就显示「注册中」。"
+		note "刷新页面就能看到，不用重启服务。关掉：uu-trace strict off"
+		;;
+	off)
+		uci set uuplugin.@uuplugin[0].repro_strict_phase='0'
+		uci commit uuplugin
+		note "已关闭：回到 2.5 的判据（进程在跑 + 控制连接已建立 = 就绪）。"
+		;;
+	*)
+		note "现在：repro_strict_phase=$(uci -q get uuplugin.@uuplugin[0].repro_strict_phase)"
+		note "用法：uu-trace strict on | off"
+		;;
+	esac
+}
+
+usage() {
+	# 文件头那段注释就是帮助，遇到第一行非注释就停
+	awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; next } NR > 1 { exit }' "$0"
+}
+
+case "${1:-}" in
+strict)
+	run_strict "${2:-}"
+	exit 0
+	;;
+-h | --help | help)
+	usage
+	exit 0
+	;;
+esac
+
+{
+	case "${1:-}" in
+	'') run_snapshot ;;
+	watch) run_watch "${2:-60}" ;;
+	restart) run_restart "${2:-20}" ;;
+	*)
+		echo "用法：uu-trace [watch|restart [秒] | strict on|off]" >&2
+		exit 1
+		;;
+	esac
+	printf '\n报告：%s\n' "$OUT"
+} 2>&1 | tee -a "$OUT"

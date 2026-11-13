@@ -89,11 +89,24 @@ function act_status()
 	-- check that.
 	e.cloud = det:match("cloud=([^\r\n]*)")
 	if e.cloud == "" then e.cloud = nil end
-	e.ready = (e.running and e.cloud ~= nil)
+	e.activated = det:match("activated=([^\r\n]*)")
+	if e.activated == "" then e.activated = nil end
+
+	-- Test switch, carried by the test/repro-activate-status branch only and
+	-- off on every normal install. Up to 2.4 the panel also wanted
+	-- activate_status to be non-empty before it said "Ready"; the OEM build
+	-- never writes that file, so those devices sat at "Registering" forever
+	-- while the app boosted happily. Turning this on puts the old rule back,
+	-- so the bug can be shown on demand: uu-trace strict on / off.
+	e.repro = (uci:get_first("uuplugin", "uuplugin", "repro_strict_phase") == "1")
+
+	e.ready = e.running and e.cloud ~= nil and not (e.repro and e.activated == nil)
 	if not e.running then
 		e.phase = "stopped"
 	elseif e.cloud == nil then
 		e.phase = "starting"
+	elseif e.repro and e.activated == nil then
+		e.phase = "registering"
 	else
 		e.phase = "ready"
 	end

@@ -81,6 +81,7 @@ FILES="
 /etc/uci-defaults/45_luci-uuplugin|luci-app-uugamebooster/root/etc/uci-defaults/45_luci-uuplugin|755
 /usr/libexec/uuplugin/uu-lib.sh|luci-app-uugamebooster/root/usr/libexec/uuplugin/uu-lib.sh|644
 /usr/libexec/uuplugin/uu-detect|luci-app-uugamebooster/root/usr/libexec/uuplugin/uu-detect|755
+/usr/libexec/uuplugin/uu-trace|luci-app-uugamebooster/root/usr/libexec/uuplugin/uu-trace|755
 /usr/libexec/uuplugin/uu-view|luci-app-uugamebooster/root/usr/libexec/uuplugin/uu-view|755
 /usr/libexec/uuplugin/xt/iptables|luci-app-uugamebooster/root/usr/libexec/uuplugin/xt/iptables|755
 /usr/libexec/uuplugin/uu-sync|luci-app-uugamebooster/root/usr/libexec/uuplugin/uu-sync|755
@@ -192,7 +193,8 @@ log "语法校验"
 fail=0
 for f in /etc/init.d/uuplugin /usr/libexec/uuplugin/uu-sync \
          /usr/libexec/uuplugin/uu-passwall-sync /usr/libexec/uuplugin/uu-sync.d/*.sh \
-         /usr/libexec/uuplugin/uu-lib.sh /usr/libexec/uuplugin/uu-detect; do
+         /usr/libexec/uuplugin/uu-lib.sh /usr/libexec/uuplugin/uu-detect \
+         /usr/libexec/uuplugin/uu-trace; do
 	sh -n "$f" 2>/dev/null || { echo "    SYNTAX $f"; fail=1; }
 done
 if command -v lua >/dev/null 2>&1; then
