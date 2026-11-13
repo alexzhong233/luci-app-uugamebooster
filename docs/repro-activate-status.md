@@ -14,11 +14,16 @@
 ## 装到路由器上
 
 ```sh
-UU_MIRROR=https://cdn.jsdelivr.net/gh/alexzhong233/luci-app-uugamebooster@test/repro-activate-status \
-  wget -O - https://cdn.jsdelivr.net/gh/alexzhong233/luci-app-uugamebooster@test/repro-activate-status/tools/update-router.sh | sh
+B=https://raw.githubusercontent.com/alexzhong233/luci-app-uugamebooster/test/repro-activate-status
+export UU_MIRROR="$B"
+wget -O - "$B/tools/update-router.sh" | sh
 ```
 
-（raw.githubusercontent 拉不动就用上面这个 jsDelivr；两个地址要指向同一个分支。）
+`export` 是必须的：写成 `UU_MIRROR=... 命令 | sh` 时那个变量只给了 wget，
+管道的另一边（sh）看不到，脚本会回去拉 master。
+
+jsDelivr 用不了 —— 它的 `@ref` 解析不了带斜杠的分支名。raw 不通就走本机：
+`tools/deploy.sh root@192.168.x.x`（在同一分支的检出目录里跑）。
 
 它只覆盖运行文件，**不动 `/etc/config/uuplugin`**，UCI 开关默认不存在 = 关。
 
